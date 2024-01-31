@@ -1,0 +1,31 @@
+[
+  {
+    "arguments": [
+      "/usr/bin/clang++",
+      "-c",
+      "-std=c++20",
+      "-Wall",
+      "-Wno-missing-braces",
+      "-Wunused-result",
+      "-D_DEFAULT_SOURCE",
+      "-O3",
+      "-I.",
+      "-I./include",
+      "-I./raylib/raylib-5.0/src",
+      "-lraylib",
+      "-framework",
+      "IOKit",
+      "-framework",
+      "Cocoa",
+      "-framework",
+      "OpenGL",
+      "-DPLATFORM_DESKTOP",
+      "-o",
+      "bad",
+      "main.cpp"
+    ],
+    "directory": "/Users/colen/Documents/Code/cpp/baddies",
+    "file": "/Users/colen/Documents/Code/cpp/baddies/main.cpp",
+    "output": "/Users/colen/Documents/Code/cpp/baddies/bad"
+  }
+]
