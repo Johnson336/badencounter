@@ -1,9 +1,10 @@
 #!/bin/bash
 
-AZUREPAT=${{ secrets.AZUREPAT }}
-AZUSERNAME=${{ secrets.AZUSERNAME }}
-AZUSER_EMAIL=${{ secrets.AZUSER_EMAIL }}
-AZORG=${{ secrets.AZORG }}
+# removing redundant variable assignments
+# AZUREPAT=${{ secrets.AZUREPAT }}
+# AZUSERNAME=${{ secrets.AZUSERNAME }}
+# AZUSER_EMAIL=${{ secrets.AZUSER_EMAIL }}
+# AZORG=${{ secrets.AZORG }}
 
 # Remove Git information (for fresh git start)
 # rm -rf badencounter/.git
