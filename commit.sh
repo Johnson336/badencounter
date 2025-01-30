@@ -1,9 +1,9 @@
 #!/bin/bash
 
-AZUREPAT=$AZUREPAT
-AZUSERNAME=$AZUSERNAME
-AZUSER_EMAIL=$AZUSER_EMAIL
-AZORG=$AZORG
+AZUREPAT=${{ secrets.AZUREPAT }}
+AZUSERNAME=${{ secrets.AZUSERNAME }}
+AZUSER_EMAIL=${{ secrets.AZUSER_EMAIL }}
+AZORG=${{ secrets.AZORG }}
 
 # Remove Git information (for fresh git start)
 # rm -rf badencounter/.git
