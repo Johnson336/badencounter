@@ -23,7 +23,8 @@
 // #define __EMSCRIPTEN__
 #include "raylib.h"
 #include "raymath.h"
-#include <iostream>
+#include <map>
+#include <string>
 
 const int NUM_POWERUP_TYPES = 9;
 enum powerup_types {
@@ -36,6 +37,32 @@ enum powerup_types {
   HULL_REPAIR,
   HULL_MAX,
   HULL_STRENGTH
+};
+
+typedef enum {
+  keyMoveUp,
+  keyMoveDown,
+  keyMoveLeft,
+  keyMoveRight,
+  keyShoot,
+  keyToggleAutoshoot
+} keys;
+
+typedef enum {
+  mouseShoot,
+} mouseKeys;
+
+std::map<keys, KeyboardKey> keymap = {
+  {keyMoveUp, KEY_W},
+  {keyMoveDown, KEY_S},
+  {keyMoveLeft, KEY_A},
+  {keyMoveRight, KEY_D},
+  {keyShoot, KEY_SPACE},
+  {keyToggleAutoshoot, KEY_I}
+};
+
+std::map<mouseKeys, MouseButton> mouseKeymap = {
+  {mouseShoot, MOUSE_BUTTON_LEFT},
 };
 
 const std::pair<int, int> upgrade_matrix[NUM_POWERUP_TYPES] = {
@@ -212,18 +239,10 @@ Asteroid Asteroids[MAX_ASTEROIDS];
 Asteroid Fragments[MAX_FRAGMENTS];
 
 Popup achievement;
-Popup death = {false,
-               20.0f,
-               Vector2{screenSize.x * 0.5f, screenSize.y * 0.5f},
-               Vector2{300, 50},
-               RED,
-               1,
-               0.25f,
-               0};
+Popup death = {false, 20.0f, Vector2{screenSize.x * 0.5f, screenSize.y * 0.5f}, Vector2{300, 50}, RED, 1, 0.25f, 0};
 
 Vector2 GetScreenSize(void);
-Vector2 GetShotSpeed(int totalShots, int currentShot, float speed,
-                     float direction);
+Vector2 GetShotSpeed(int totalShots, int currentShot, float speed, float direction);
 int NewBaddie(void);
 void UpdatePlayer(void);
 void UpdatePowerup(int id);
@@ -612,11 +631,9 @@ void DrawBaddieTexture(int x, int y, Vector2 coords, Color hitColor) {
 }
 
 void DrawBossTexture(int x, int y, Vector2 coords, Color hitColor) {
-  DrawTexturePro(
-      textures[SHIPS],
+  DrawTexturePro( textures[SHIPS],
       Rectangle{8.0f * 4 + (16.0f * x), 8.0f * 6 + (16.0f * y), 16.0f, 16.0f},
-      Rectangle{coords.x, coords.y, BossSize.x, BossSize.y}, Vector2Zero(), 0,
-      hitColor);
+      Rectangle{coords.x, coords.y, BossSize.x, BossSize.y}, Vector2Zero(), 0, hitColor);
   // DrawRectangleLines(coords.x, coords.y, BossSize.x, BossSize.y, WHITE);
 }
 
@@ -639,14 +656,9 @@ void DrawBossProjectileTexture(int x, int y, Vector2 coords, Vector2 size,
 void DrawUpgradeTexture(int x, int y, Vector2 coords, Vector2 size,
                         Color tint) {
   DrawTexturePro(textures[UPGRADES],
-                 Rectangle{
-                     16.0f * x,
-                     16.0f * y,
-                     16.0f,
-                     16.0f,
-                 },
-                 Rectangle{coords.x, coords.y, size.x, size.y}, Vector2Zero(),
-                 0.0f, tint);
+                 Rectangle{ 16.0f * x, 16.0f * y, 16.0f, 16.0f, },
+                 Rectangle{coords.x, coords.y, size.x, size.y}, 
+                 Vector2Zero(), 0.0f, tint);
 }
 
 void DrawMiscTexture(Rectangle source, Rectangle output, Color tint) {
@@ -834,8 +846,7 @@ Vector2 GetShotSpeed(int totalShots, int currentShot, float speed,
     }
     break;
   }
-  return Vector2Multiply(Vector2Scale(Vector2Normalize(dir), speed),
-                         Vector2{1.0f, direction});
+  return Vector2Multiply(Vector2Scale(Vector2Normalize(dir), speed), Vector2{1.0f, direction});
 }
 
 void UpdatePlayerShield(void) {
@@ -913,18 +924,15 @@ void UpdateBaddieShield(Baddie &baddie) {
 
 void DrawBackground() {
   DrawTexturePro(textures[BACKGROUND], Rectangle{0, 0, 500, 1000},
-                 Rectangle{0, 0, screenSize.x, screenSize.y}, Vector2Zero(), 0,
-                 WHITE);
+                 Rectangle{0, 0, screenSize.x, screenSize.y}, Vector2Zero(), 0, WHITE);
 
   DrawTexturePro(textures[MOVING_BACKGROUND],
                  Rectangle{129 * 2, 256 * 1, 129, 256},
-                 Rectangle{0, movingBackgroundPosY - screenSize.y, screenSize.x,
-                           screenSize.y},
+                 Rectangle{0, movingBackgroundPosY - screenSize.y, screenSize.x, screenSize.y},
                  Vector2Zero(), 0, WHITE);
   DrawTexturePro(textures[MOVING_BACKGROUND],
                  Rectangle{129 * 2, 256 * 1, 129, 256},
-                 Rectangle{0, movingBackgroundPosY, screenSize.x, screenSize.y},
-                 Vector2Zero(), 0, WHITE);
+                 Rectangle{0, movingBackgroundPosY, screenSize.x, screenSize.y}, Vector2Zero(), 0, WHITE);
 }
 
 void DrawPlayer() {
@@ -1122,7 +1130,7 @@ void ProcessPlayerInput(void) {
     playerTimeFrozen = false;
   }
 
-  if (IsKeyPressed(KEY_I))
+  if (IsKeyPressed(keymap[keyToggleAutoshoot]))
     autoShoot = !autoShoot;
 
   if (IsKeyPressed(KEY_G)) {
@@ -1138,7 +1146,7 @@ void ProcessPlayerInput(void) {
 
   // player movement and shooting
   float speed = 150 * GetFrameTime();
-  if (IsKeyDown(KEY_SPACE) || IsMouseButtonDown(MOUSE_BUTTON_LEFT) ||
+  if (IsKeyDown(keymap[keyShoot]) || IsMouseButtonDown(mouseKeymap[mouseShoot]) ||
       autoShoot) {
     if (playerCanShoot) {
       playerCanShoot = false;
@@ -1150,13 +1158,13 @@ void ProcessPlayerInput(void) {
 
   playerPreviousPos = playerPos;
 
-  if (IsKeyDown(KEY_UP))
+  if (IsKeyDown(KEY_UP) || IsKeyDown(keymap[keyMoveUp]))
     playerPos.y -= speed;
-  if (IsKeyDown(KEY_DOWN))
+  if (IsKeyDown(KEY_DOWN) || IsKeyDown(keymap[keyMoveDown]))
     playerPos.y += speed;
-  if (IsKeyDown(KEY_LEFT))
+  if (IsKeyDown(KEY_LEFT) || IsKeyDown(keymap[keyMoveLeft]))
     playerPos.x -= speed;
-  if (IsKeyDown(KEY_RIGHT))
+  if (IsKeyDown(KEY_RIGHT) || IsKeyDown(keymap[keyMoveRight]))
     playerPos.x += speed;
 
   Vector2 mouseCoords = GetMousePosition();
