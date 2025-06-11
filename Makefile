@@ -173,6 +173,10 @@ ifeq ($(PLATFORM),PLATFORM_DESKTOP)
         # FreeBSD, OpenBSD, NetBSD, DragonFly default compiler
         CC = clang++
     endif
+    ifeq ($(PLATFORM_OS),LINUX)
+        # OSX default compiler
+        CC = clang++
+    endif
 endif
 ifeq ($(PLATFORM),PLATFORM_RPI)
     ifeq ($(USE_RPI_CROSS_COMPILER),TRUE)
