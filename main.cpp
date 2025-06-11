@@ -736,6 +736,30 @@ int FindEmptyFragment(Asteroid *list) {
   return -1;
 }
 
+Vector2 calculateBulletTrajectory(const Vector2& shipPos, const Vector2& shipVelocity, const Vector2& targetPos, float bulletSpeed) {
+  // calculate direction from ship to target
+  float dx = targetPos.x - shipPos.x;
+  float dy = targetPos.y - shipPos.y;
+  float distance = std::sqrt(dx * dx + dy * dy);
+
+  // handle case where ship is at target position
+  if (distance == 0) {
+    return shipVelocity; // just inherit the ship velocity
+  }
+
+  // normalize direction vector
+  float dirX = dx / distance;
+  float dirY = dy / distance;
+
+  // calculate bullet velocity relative to ship
+  Vector2 bulletVelRelative(dirX * bulletSpeed, dirY * bulletSpeed);
+
+  // add ship's velocity to get absolute bullet velocity
+  Vector2 bulletVelAbsolute = Vector2(bulletVelRelative.x + shipVelocity.x, bulletVelRelative.y + shipVelocity.y);
+
+  return bulletVelAbsolute; 
+}
+
 int NewPlayerBullet(Vector2 position, int style, float lifetime, Color tint,
                     bool boss) {
   int id = -1;
@@ -746,13 +770,23 @@ int NewPlayerBullet(Vector2 position, int style, float lifetime, Color tint,
 
     Bullets[id].active = true;
     Bullets[id].boss = boss;
-    Bullets[id].position =
-        Vector2{position.x + (playerSize.x * 0.5f), position.y};
+    Bullets[id].position = getPlayerCenter();
     Bullets[id].lifetime = lifetime;
     Bullets[id].tint = tint;
     Bullets[id].player_bullet = true;
-    Bullets[id].direction =
-        GetShotSpeed(playerShotSpread, i, playerShotSpeed, -1.0f);
+    Vector2 playerMovement = {0, 0};
+    if (playerPreviousPos.x < playerPos.x)
+      playerMovement.x = -playerSpeed;
+    if (playerPreviousPos.x > playerPos.x)
+      playerMovement.x = playerSpeed;
+    if (playerPreviousPos.y < playerPos.y)
+      playerMovement.y = -playerSpeed;
+    if (playerPreviousPos.y > playerPos.y)
+      playerMovement.y = playerSpeed;
+
+    Bullets[id].direction = calculateBulletTrajectory(playerPos, playerMovement, playerTarget, playerShotSpeed);
+        // using enhanced shot targeting
+        // GetShotSpeed(playerShotSpread, i, playerShotSpeed, -1.0f);
     Bullets[id].damage = playerShotPower;
     Bullets[id].type = style;
     Bullets[id].size = Vector2{48.0f, 48.0f};
@@ -1004,7 +1038,7 @@ void DrawPlayerTarget() {
 
   DrawLine(playerTarget.x-5, playerTarget.y, playerTarget.x+5, playerTarget.y, RED);
   DrawLine(playerTarget.x, playerTarget.y-5, playerTarget.x, playerTarget.y+5, RED);
-  DrawLineV(playerTarget, {playerPos.x+(playerSize.x*0.5f), playerPos.y+(playerSize.y*0.5f)}, GRAY);
+  DrawLineV(playerTarget, getPlayerCenter(), GRAY);
 }
 
 void DrawPlayerFreezeTimer(void) {
@@ -1203,7 +1237,7 @@ void ProcessPlayerInput(void) {
   playerPos = Vector2Clamp(playerPos, Vector2{1.0f, 1.0f},
                            Vector2{screenSize.x - 1.0f - playerSize.x,
                                    screenSize.y - 1.0f - playerSize.y});
-  playerRotation = getRotationAngleDegrees(playerPos, playerTarget);
+  playerRotation = getRotationAngleDegrees(getPlayerCenter(), playerTarget);
 }
 
 void ProcessPlayerState(void) {
@@ -1411,7 +1445,7 @@ int NewAsteroid(int type) {
   int id = FindEmptyAsteroid(Asteroids);
   if (id == -1)
     return -1; // didn't find a valid slot
-  int scoreMult = (Score / 100);
+  int scoreMult = (fmaxf(Score, 0) / 100); // make sure we don't have a negative scoreMult, that would make enemies impossible
   Asteroids[id].type = type ? type : GetRandomValue(1, 2);
   Asteroids[id].size = ((Asteroids[id].type == 1) ? 32.0f : 64.0f);
   Asteroids[id].active = true;
@@ -1458,7 +1492,7 @@ int NewBaddie() {
   int id = FindEmptyBaddie(Baddies);
   if (id == -1)
     return -1; // nope
-  int scoreMult = (Score / 100);
+  int scoreMult = (fmaxf(Score, 0) / 100);
   bool boss = (GetRandomValue(0, 100) < scoreMult);
 
   Baddies[id].boss = boss; // 5% chance to spawn a boss
