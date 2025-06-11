@@ -45,7 +45,8 @@ typedef enum {
   keyMoveLeft,
   keyMoveRight,
   keyShoot,
-  keyToggleAutoshoot
+  keyToggleAutoshoot,
+  keyGodMode,
 } keys;
 
 typedef enum {
@@ -58,7 +59,8 @@ std::map<keys, KeyboardKey> keymap = {
   {keyMoveLeft, KEY_A},
   {keyMoveRight, KEY_D},
   {keyShoot, KEY_SPACE},
-  {keyToggleAutoshoot, KEY_I}
+  {keyToggleAutoshoot, KEY_I},
+  {keyGodMode, KEY_G}
 };
 
 std::map<mouseKeys, MouseButton> mouseKeymap = {
@@ -273,6 +275,7 @@ Vector2 getPlayerCenter(void);
 float getPlayerShieldRadius(void);
 void DrawBackground(void);
 void DrawPlayer(void);
+void DrawPlayerTarget(void);
 void DrawStats(void);
 void DrawHullBar(void);
 void DrawShieldBar(void);
@@ -293,6 +296,8 @@ void UpdateBackground(void);
 bool autoShoot = false;
 bool GOD_MODE = false;
 Vector2 playerPos = {0};
+Vector2 playerTarget = {0};
+float playerRotation = 0.0f;
 Vector2 playerPreviousPos = {0};
 Vector2 playerSize = {32.0f, 32.0f};
 bool playerDead = false;
@@ -616,10 +621,10 @@ void InitGame(void) {
   SetMousePosition(playerPos.x, playerPos.y);
 }
 
-void DrawShipTexture(int x, int y, Vector2 coords, Color hitColor) {
+void DrawShipTexture(int x, int y, Vector2 coords, float rotation, Color hitColor) {
   DrawTexturePro(textures[SHIPS], Rectangle{8.0f * x, 8.0f * y, 8, 8},
-                 Rectangle{coords.x, coords.y, playerSize.x, playerSize.y},
-                 Vector2Zero(), 0, hitColor);
+                 Rectangle{coords.x+(playerSize.x*0.5f), coords.y+(playerSize.y*0.5f), playerSize.x, playerSize.y},
+                 {playerSize.x*0.5f, playerSize.y*0.5f}, rotation, hitColor);
   // DrawRectangleLines(coords.x, coords.y, playerSize.x, playerSize.y, WHITE);
 }
 
@@ -935,6 +940,23 @@ void DrawBackground() {
                  Rectangle{0, movingBackgroundPosY, screenSize.x, screenSize.y}, Vector2Zero(), 0, WHITE);
 }
 
+// Function to calculate the angle (in radians) for point1 to face toward point2
+// Returns angle in radians, measured counterclockwise from the positive X-axis
+float getRotationAngle(const Vector2& from, const Vector2& to) {
+    float dx = to.x - from.x;
+    float dy = to.y - from.y;
+    return std::atan2(dy, dx);
+}
+
+// Alternative version that returns angle in degrees
+float getRotationAngleDegrees(const Vector2& from, const Vector2& to) {
+    float radians = getRotationAngle(from, to);
+    float angle = radians * 180.0f / M_PI;
+    angle += 90.0f;
+    if (angle > 360.0f) angle -= 360.0f;
+    return angle;
+}
+
 void DrawPlayer() {
   if (playerExploding || playerDead) {
     DrawMiscTexture(
@@ -963,7 +985,7 @@ void DrawPlayer() {
     shipdirection = 1;
 
   // draw player ship with direction
-  DrawShipTexture(shipdirection, 0, playerPos, hitColor);
+  DrawShipTexture(shipdirection, 0, playerPos, playerRotation, hitColor);
   // draw shield shields
   if (GOD_MODE) {
     DrawShieldTexture(playerShieldFrames - 1, playerPos, playerSize, 0, RED);
@@ -976,6 +998,13 @@ void DrawPlayer() {
     // YELLOW);
   }
   DrawPlayerFreezeTimer();
+}
+
+void DrawPlayerTarget() {
+
+  DrawLine(playerTarget.x-5, playerTarget.y, playerTarget.x+5, playerTarget.y, RED);
+  DrawLine(playerTarget.x, playerTarget.y-5, playerTarget.x, playerTarget.y+5, RED);
+  DrawLineV(playerTarget, {playerPos.x+(playerSize.x*0.5f), playerPos.y+(playerSize.y*0.5f)}, GRAY);
 }
 
 void DrawPlayerFreezeTimer(void) {
@@ -1133,7 +1162,7 @@ void ProcessPlayerInput(void) {
   if (IsKeyPressed(keymap[keyToggleAutoshoot]))
     autoShoot = !autoShoot;
 
-  if (IsKeyPressed(KEY_G)) {
+  if (IsKeyPressed(keymap[keyGodMode])) {
     GOD_MODE = !GOD_MODE;
   }
 
@@ -1168,11 +1197,13 @@ void ProcessPlayerInput(void) {
     playerPos.x += speed;
 
   Vector2 mouseCoords = GetMousePosition();
-  playerPos = mouseCoords;
+  //playerPos = mouseCoords;
+  playerTarget = mouseCoords;
   // clamps player position within screen space
   playerPos = Vector2Clamp(playerPos, Vector2{1.0f, 1.0f},
                            Vector2{screenSize.x - 1.0f - playerSize.x,
                                    screenSize.y - 1.0f - playerSize.y});
+  playerRotation = getRotationAngleDegrees(playerPos, playerTarget);
 }
 
 void ProcessPlayerState(void) {
@@ -1265,6 +1296,7 @@ void UpdateAndDraw(void) {
   DrawBackground();
 
   DrawPlayer();
+  DrawPlayerTarget();
 
   // draw end line for baddies to cross
   DrawRectangle(0, screenSize.y - 100, screenSize.x, 3, BLACK);
@@ -2236,6 +2268,8 @@ int main(void) {
   //--------------------------------------------------------------------------------------
 
   InitWindow(screenSize.x, screenSize.y, "Bad Encounter");
+  SetTargetFPS(GetMonitorRefreshRate(GetCurrentMonitor())); // Set our game
+  SetWindowState(FLAG_WINDOW_UNDECORATED);
 
   const char *app_dir = GetApplicationDirectory();
   ChangeDirectory(app_dir);
