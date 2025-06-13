@@ -47,6 +47,8 @@ typedef enum {
   keyShoot,
   keyToggleAutoshoot,
   keyGodMode,
+  keyAbility,
+  keyPause,
 } keys;
 
 typedef enum {
@@ -60,7 +62,9 @@ std::map<keys, KeyboardKey> keymap = {
   {keyMoveRight, KEY_D},
   {keyShoot, KEY_SPACE},
   {keyToggleAutoshoot, KEY_I},
-  {keyGodMode, KEY_G}
+  {keyGodMode, KEY_G},
+  {keyAbility, KEY_LEFT_SHIFT},
+  {keyPause, KEY_P},
 };
 
 std::map<mouseKeys, MouseButton> mouseKeymap = {
@@ -303,7 +307,7 @@ Vector2 playerSize = {32.0f, 32.0f};
 bool playerDead = false;
 bool playerWon = false;
 
-float playerSpeed = 10.0f; // pixels per frame
+float playerSpeed = 150.0f; // pixels per frame
                            // start with 3 hull
 int playerHull = 3;
 int playerHullMax = 3;
@@ -562,7 +566,7 @@ void InitGame(void) {
   playerDead = false;
   playerWon = false;
 
-  playerSpeed = 10.0f; // pixels per frame
+  playerSpeed = 150.0f; // pixels per frame
                        // start with 3 hull
   playerHull = 3;
   playerHullMax = 3;
@@ -767,7 +771,7 @@ int NewPlayerBullet(Vector2 position, int style, float lifetime, Color tint,
     id = FindEmptyBullet(Bullets);
     if (id == -1)
       return -1; // nope
-
+    
     Bullets[id].active = true;
     Bullets[id].boss = boss;
     Bullets[id].position = getPlayerCenter();
@@ -776,13 +780,13 @@ int NewPlayerBullet(Vector2 position, int style, float lifetime, Color tint,
     Bullets[id].player_bullet = true;
     Vector2 playerMovement = {0, 0};
     if (playerPreviousPos.x < playerPos.x)
-      playerMovement.x = -playerSpeed;
-    if (playerPreviousPos.x > playerPos.x)
       playerMovement.x = playerSpeed;
+    if (playerPreviousPos.x > playerPos.x)
+      playerMovement.x = -playerSpeed;
     if (playerPreviousPos.y < playerPos.y)
-      playerMovement.y = -playerSpeed;
-    if (playerPreviousPos.y > playerPos.y)
       playerMovement.y = playerSpeed;
+    if (playerPreviousPos.y > playerPos.y)
+      playerMovement.y = -playerSpeed;
 
     Bullets[id].direction = calculateBulletTrajectory(playerPos, playerMovement, playerTarget, playerShotSpeed);
         // using enhanced shot targeting
@@ -1174,7 +1178,7 @@ void ProcessPlayerInput(void) {
       InitGame();
   }
 
-  if (IsKeyPressed(KEY_P)) {
+  if (IsKeyPressed(keymap[keyPause])) {
     if (player_game_state == GAME_STATE_PAUSED) {
       player_game_state = GAME_STATE_PLAYING;
     } else if (player_game_state == GAME_STATE_PLAYING) {
@@ -1187,7 +1191,7 @@ void ProcessPlayerInput(void) {
     return; // abort input handling when not in a valid playing state
 
   // handle freeze time
-  if (IsKeyDown(KEY_LEFT_SHIFT)) {
+  if (IsKeyDown(keymap[keyAbility])) {
     playerTimeFrozen = (playerFreezeTimer > 0.0f);
   } else if (playerTimeFrozen) {
     playerTimeFrozen = false;
@@ -1208,7 +1212,7 @@ void ProcessPlayerInput(void) {
   }
 
   // player movement and shooting
-  float speed = 150 * GetFrameTime();
+  float speed = playerSpeed * GetFrameTime();
   if (IsKeyDown(keymap[keyShoot]) || IsMouseButtonDown(mouseKeymap[mouseShoot]) ||
       autoShoot) {
     if (playerCanShoot) {
@@ -1761,8 +1765,7 @@ void PerformHitBaddie(Bullet &bullet, Baddie &baddie) {
     baddie.flash_timer = playerFlashTime;
     if (baddie.hull <= 0) {
       PerformKillBaddie(&baddie);
-      if (GetRandomValue(1, 100) <
-          (baddie.boss ? 20 : 5)) { // 20% : 5% chance for a powerup
+      if (GetRandomValue(1, 100) < (baddie.boss ? 20 : 5)) { // 20% : 5% chance for a powerup
         NewPowerup(baddie.position, Vector2{0, (float)PowerupSpeed}, 5.0f);
       }
       if (GetRandomValue(1, 100) < 10) {
@@ -1788,8 +1791,7 @@ void PerformHitAsteroid(Bullet &bullet, Asteroid &hit) {
       PerformFragmentAsteroid(&hit);
     }
     // PlaySound(sounds[SUCCESS]);
-    if (GetRandomValue(1, 100) <
-        33) { // 33% chance to drop a resource collectible
+    if (GetRandomValue(1, 100) < 33) { // 33% chance to drop a resource collectible
       NewPowerup(hit.position, Vector2{0, (float)PowerupSpeed}, 5.0f);
       // skip the resource drop for now, just give some bonus score
       // NewResource(hit.position, Vector2{ 0, (float)PowerupSpeed },
