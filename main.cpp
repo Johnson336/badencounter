@@ -139,6 +139,7 @@ struct Player {
   bool autoShoot = false;
   bool GOD_MODE = false;
   Vector2 pos = {0};
+  Vector2 vel = {0};
   Vector2 target = {0};
   Vector2 movement = {0};
   float rotation = 0;
@@ -146,13 +147,13 @@ struct Player {
   Vector2 size = {32.0f, 32.0f};
   bool dead = false;
   bool won = false;
-  Vector2 speed = {150.0f, 0.0f};
+  Vector2 speed = {100.0f, 150.0f};
   int hull = 3;
   int hullMax = 3;
   int hullStrength = 1; // mitigates damage
   int shield = 0;
   int shieldMax = 0;
-  int shotSpeed = 100;
+  float shotSpeed = 160.0f;
   float shotReload = 10.0f / 60.0f;
   float shotTimer = 0;
   bool canShoot = true;
@@ -189,7 +190,7 @@ struct Player {
   float freezeTime = 1.0f;
   float freezeTimer = freezeTime;
   bool timeFrozen = false;
-  int Score = 0;
+  int score = 0;
 };
 
 struct Enemy {
@@ -236,6 +237,7 @@ struct Bullet {
   bool player_bullet;
   float shot_timer;
   int damage;
+  float rotation;
 };
 
 struct Powerup {
@@ -422,9 +424,8 @@ Vector2 EnemySize = {48.0f, 48.0f};
 Vector2 BulletSize = {48.0f, 48.0f};
 Vector2 BossSize = {96.0f, 96.0f};
 float EnemySpeed = 100.0f;
-int Score = 0;
 Vector2 PowerupSize = {25.0f, 25.0f};
-float PowerupSpeed = 300.0f;
+float PowerupSpeed = 150.0f;
 float PowerupLifetime = 2.0f;
 
 float movingBackgroundPosY = 0;
@@ -601,19 +602,20 @@ void ResetPlayer(void) {
   player.autoShoot = false;
   player.GOD_MODE = false;
   player.pos = {0};
+  player.vel = {0};
   player.target = {0};
   player.rotation = 0;
   player.prevPos = {0};
   player.size = {32.0f, 32.0f};
   player.dead = false;
   player.won = false;
-  player.speed = {150.0f, 0.0f};
+  player.speed = {100.0f, 150.0f};
   player.hull = 3;
   player.hullMax = 3;
   player.hullStrength = 1; // mitigates damage
   player.shield = 0;
   player.shieldMax = 0;
-  player.shotSpeed = 100;
+  player.shotSpeed = 160.0f;
   player.shotReload = 10.0f / 60.0f;
   player.shotTimer = 0;
   player.canShoot = true;
@@ -650,7 +652,7 @@ void ResetPlayer(void) {
   player.freezeTime = 1.0f;
   player.freezeTimer = player.freezeTime;
   player.timeFrozen = false;
-  player.Score = 0;
+  player.score = 0;
   player.gameTime = GetTime();
 }
 
@@ -856,17 +858,18 @@ int NewPlayerBullet(Vector2 position, int style, float lifetime, Color tint,
     
     Bullets[id].active = true;
     Bullets[id].boss = boss;
-    Bullets[id].position = getPlayerCenter();
+    Bullets[id].position = position;
     Bullets[id].lifetime = lifetime;
     Bullets[id].tint = tint;
     Bullets[id].player_bullet = true;
 
-    Bullets[id].direction = calculateBulletTrajectory(Bullets[id].position, Vector2Scale(player.movement, player.speed.x), player.target, player.shotSpeed);
+    Bullets[id].direction = calculateBulletTrajectory(position, player.vel, player.target, player.shotSpeed);
         // using enhanced shot targeting
         // GetShotSpeed(playerShotSpread, i, playerShotSpeed, -1.0f);
     Bullets[id].damage = player.shotPower;
     Bullets[id].type = style;
     Bullets[id].size = Vector2{48.0f, 48.0f};
+    Bullets[id].rotation = player.rotation;
   }
   return id;
 }
@@ -891,6 +894,7 @@ int NewEnemyBullet(Enemy &enemy, float lifetime, Color tint) {
         (enemy.boss ? GetRandomValue(5, 10) : GetRandomValue(1, 3));
     Bullets[id].type = enemy.shot_style;
     Bullets[id].size = Vector2{32.0f, 32.0f};
+    Bullets[id].rotation = 180.0f;
   }
 
   return id;
@@ -1202,7 +1206,8 @@ void DrawBullet(int id) {
                               135.0f, WHITE);
   } else {
     DrawProjectileTexture(bx, by, Bullets[id].position, Bullets[id].size,
-                          180.0f * (!Bullets[id].player_bullet), WHITE);
+                          Bullets[id].rotation,
+                          WHITE);
   }
 
   // draw bullet bounding box for debug
@@ -1284,28 +1289,32 @@ void ProcessPlayerInput(void) {
     player.shotStyle--;
   }
 
-  // player movement and shooting
-  float speed = player.speed.x * GetFrameTime();
-  if (IsKeyDown(keymap[keyShoot]) || IsMouseButtonDown(mouseKeymap[mouseShoot]) ||
-      player.autoShoot) {
-    if (player.canShoot) {
-      player.canShoot = false;
-
-      NewPlayerBullet(player.pos, player.shotStyle, ShotLifetime, GREEN, false);
-    }
-  } else
-    speed *= 2;
-
   // perform player rotation
-  // this needs to happen before player movement
+  // this needs to happen before player movement and shooting
   // so we know which direction to move the player if using directional_movement
+  // and we also know what angle to rotate bullets
   Vector2 mouseCoords = GetMousePosition();
   //playerPos = mouseCoords;
   player.target = mouseCoords;
   player.rotation = getRotationAngleDegrees(getPlayerCenter(), player.target);
+
+  // player movement and shooting
+  float speedMult = 1;
+  if (IsKeyDown(keymap[keyShoot]) || IsMouseButtonDown(mouseKeymap[mouseShoot]) ||
+      player.autoShoot) {
+    if (player.canShoot) {
+      player.canShoot = false;
+      NewPlayerBullet(getPlayerCenter(), player.shotStyle, ShotLifetime, GREEN, false);
+    }
+  } else
+    speedMult *= 2;
+
  
   player.prevPos = player.pos;
 
+  float dt = GetFrameTime();
+
+  // player.movement is the input movement vector
   player.movement = Vector2Zero();
   bool FOUR_AXIS_MOVEMENT = false;
 
@@ -1321,34 +1330,56 @@ void ProcessPlayerInput(void) {
     if (IsKeyDown(KEY_RIGHT) || IsKeyDown(keymap[keyMoveRight]))
       player.movement.x = 1;
 
-    player.pos = Vector2Add(player.pos, Vector2Scale(Vector2Normalize(player.movement), speed));
+    player.pos.x += player.movement.x * (player.speed.x * (speedMult * dt));
+    player.pos.y += player.movement.y * (player.speed.y * (speedMult * dt));
   } else {
     // directional movement relative to player target
     Vector2 playerCenter = getPlayerCenter();
     float dx = player.target.x - playerCenter.x;
     float dy = player.target.y - playerCenter.y;
     float dist = std::sqrt(dx * dx + dy * dy);
+    // remove flying in tiny circles toward a fixed target
+    if (dist > 0.001f) {
 
-    float normDx = dx / dist;
-    float normDy = dy / dist;
+      float normDx = dx / dist;
+      float normDy = dy / dist;
+      // calculate perpendicular vector for orbital movement
+      // perpendicular to (normDx, normDy) is (-normDy, normDx) for CCW
+      float perpDx = -normDy;
+      float perpDy = normDx;
 
-    if (IsKeyDown(KEY_UP) || IsKeyDown(keymap[keyMoveUp]))
-      player.movement = Vector2Add(player.movement, {normDx, normDy});
-    if (IsKeyDown(KEY_DOWN) || IsKeyDown(keymap[keyMoveDown]))
-      player.movement = Vector2Add(player.movement, {-normDx, -normDy});
-    if (IsKeyDown(KEY_LEFT) || IsKeyDown(keymap[keyMoveLeft]))
-      player.movement = Vector2Add(player.movement, {normDy, -normDx});
-    if (IsKeyDown(KEY_RIGHT) || IsKeyDown(keymap[keyMoveRight]))
-      player.movement = Vector2Add(player.movement, {-normDy, normDx});
-
-    player.pos = Vector2Add(player.pos, Vector2Scale(player.movement, speed));
-    
-    
+      if (IsKeyDown(KEY_UP) || IsKeyDown(keymap[keyMoveUp])) {
+        // move towards target
+        player.movement.x += normDx * player.speed.y;
+        player.movement.y += normDy * player.speed.y;
+      }
+      if (IsKeyDown(KEY_DOWN) || IsKeyDown(keymap[keyMoveDown])) {
+        // move away from target
+        player.movement.x += -normDx * player.speed.y;
+        player.movement.y += -normDy * player.speed.y;
+      }
+      if (IsKeyDown(KEY_LEFT) || IsKeyDown(keymap[keyMoveLeft])) {
+        // orbit clockwise
+        player.movement.x += -perpDx * player.speed.x;
+        player.movement.y += -perpDy * player.speed.x;
+      }
+      if (IsKeyDown(KEY_RIGHT) || IsKeyDown(keymap[keyMoveRight])) {
+        // orbit counter-clockwise
+        player.movement.x += perpDx * player.speed.x;
+        player.movement.y += perpDy * player.speed.x;
+      }
+ 
+      player.pos.x += player.movement.x * (speedMult * dt); 
+      player.pos.y += player.movement.y * (speedMult * dt);
+    }
   }
 
   // clamps player position within screen space
   player.pos = Vector2Clamp(player.pos, 
                            Vector2{1.0f, 1.0f}, Vector2{screenSize.x - 1.0f - player.size.x, screenSize.y - 1.0f - player.size.y});
+
+  player.vel.x = (player.pos.x - player.prevPos.x) / dt;
+  player.vel.y = (player.pos.y - player.prevPos.y) / dt;
 }
 
 void ProcessPlayerState(void) {
@@ -1484,7 +1515,7 @@ void UpdateAndDraw(void) {
   }
 
   DrawText("Mouse to Move, Click to Fire", 10, 10, 20, LIGHTGRAY);
-  DrawText(TextFormat("Score %d", Score), 30, 30, 20, RED);
+  DrawText(TextFormat("Score %d", player.score), 30, 30, 20, RED);
   DrawFPS(screenSize.x - 80, 20);
 
   if (player.dead)
@@ -1537,7 +1568,7 @@ void DrawDeathScreen(void) {
 
   DrawText(TextFormat("You are DEAD\n\nFinal score: %d\n\nYou lasted %1.0f "
                       "seconds.\n\nClick or tap to fly again.",
-                      Score, player.endTime - player.gameTime),
+                      player.score, player.endTime - player.gameTime),
            15, 405, 30, RAYWHITE);
 }
 
@@ -1547,7 +1578,7 @@ void DrawWinScreen(void) {
 
   DrawText(TextFormat("You have WON!!\n\nFinal score: %d\n\nWon in %1.0f "
                       "seconds!\n\nClick or tap to fly again",
-                      Score, player.endTime - player.gameTime),
+                      player.score, player.endTime - player.gameTime),
            15, 405, 30, RAYWHITE);
 }
 
@@ -1556,7 +1587,7 @@ int NewAsteroid(int type) {
   int id = FindEmptyAsteroid(Asteroids);
   if (id == -1)
     return -1; // didn't find a valid slot
-  int scoreMult = (fmaxf(Score, 0) / 100); // make sure we don't have a negative scoreMult, that would make enemies impossible
+  int scoreMult = (fmaxf(player.score, 0) / 100); // make sure we don't have a negative scoreMult, that would make enemies impossible
   Asteroids[id].type = type ? type : GetRandomValue(1, 2);
   Asteroids[id].size = ((Asteroids[id].type == 1) ? 32.0f : 64.0f);
   Asteroids[id].active = true;
@@ -1602,7 +1633,7 @@ int NewEnemy() {
   int id = FindEmptyEnemy(Enemies);
   if (id == -1)
     return -1; // nope
-  int scoreMult = (fmaxf(Score, 0) / 100);
+  int scoreMult = (fmaxf(player.score, 0) / 100);
   bool boss = (GetRandomValue(0, 100) < scoreMult);
 
   Enemies[id].boss = boss; // 5% chance to spawn a boss
@@ -1718,7 +1749,7 @@ void UpdateBullet(int id) {
 }
 
 void UpdatePlayer(void) {
-  if (Score >= 10000 && !player.GOD_MODE && !player.won) {
+  if (player.score >= 10000 && !player.GOD_MODE && !player.won) {
     PlaySound(sounds[WIN_TRUMPETS]);
     player.endTime = GetTime();
     player.won = true;
@@ -1869,7 +1900,7 @@ void PerformFragmentAsteroid(Asteroid *asteroid) {
 void PerformHitPlayer(Bullet &bullet) {
   // we are passing in the bullet so we can do damage calculating... eventually
   PerformKillBullet(&bullet);
-  Score -= Clamp((bullet.damage - player.hullStrength), 0, bullet.damage);
+  player.score -= Clamp((bullet.damage - player.hullStrength), 0, bullet.damage);
   if (player.shield > 0) {
     player.shield -= fminf(player.shield, bullet.damage); // prevent shields going negative
     if (player.shield == 0) {
@@ -1904,7 +1935,7 @@ void PerformHitEnemy(Bullet &bullet, Enemy &enemy) {
     if (enemy.hull <= 0) {
       PerformKillEnemy(&enemy);
       if (GetRandomValue(1, 100) < (enemy.boss ? 20 : 5)) { // 20% : 5% chance for a powerup
-        NewPowerup(enemy.position, Vector2{0, (float)PowerupSpeed}, 5.0f);
+        NewPowerup(enemy.position, Vector2{0, PowerupSpeed}, 5.0f);
       }
       if (GetRandomValue(1, 100) < 10) {
         NewAsteroid(0);
@@ -1912,7 +1943,7 @@ void PerformHitEnemy(Bullet &bullet, Enemy &enemy) {
       int value = (enemy.hull_max);
       if (enemy.boss)
         value *= 2;
-      Score += value;
+      player.score += value;
     }
   }
 }
@@ -1941,13 +1972,13 @@ void PerformHitAsteroid(Bullet &bullet, Asteroid &hit) {
     }
     // PlaySound(sounds[SUCCESS]);
     if (GetRandomValue(1, 100) < 33) { // 33% chance to drop a resource collectible
-      NewPowerup(hit.position, Vector2{0, (float)PowerupSpeed}, 5.0f);
+      NewPowerup(hit.position, Vector2{0, PowerupSpeed}, 5.0f);
       // skip the resource drop for now, just give some bonus score
       // NewResource(hit.position, Vector2{ 0, GetRandomValue(0, 50) },
       // GetRandomValue(0, 1000) / 1000.0f );
     }
 
-    Score += (hit.durability_max);
+    player.score += (hit.durability_max);
     if (GetRandomValue(1, 100) < 10) {
       NewAsteroid(0);
     }
@@ -1961,14 +1992,15 @@ void UpdatePowerup(int id) {
     return;
   }
   Powerups[id].position =
-      Vector2Add(Powerups[id].position,
-                 Vector2Scale(Powerups[id].direction, GetFrameTime()));
+      Vector2Add(Powerups[id].position, Vector2Scale(Powerups[id].direction, GetFrameTime()));
 
   if (Powerups[id].position.y + PowerupSize.y > (screenSize.y - 100.0f)) {
     // ran into the endzone and disappeared
     PerformKillPowerup(&Powerups[id]);
     return;
   }
+  // slow down falling powerups
+  Powerups[id].direction = Vector2Scale(Powerups[id].direction, 0.998f);
   Rectangle powerupRec = {Powerups[id].position.x, Powerups[id].position.y,
                           PowerupSize.x, PowerupSize.y};
 
@@ -1982,7 +2014,7 @@ void UpdatePowerup(int id) {
       break;
     case SHOT_SPEED:
       PlaySound(sounds[POWERUP_COLLECT]);
-      player.shotSpeed += 100.0f;
+      player.shotSpeed += 20.0f;
       break;
     case SHOT_POWER:
       if (player.shotPower < 5) {
@@ -2141,7 +2173,7 @@ void UpdateEnemy(int id) {
   if (Enemies[id].position.y + EnemySize.y >= (screenSize.y - 100.0f)) {
     // they got through
     ResetEnemy(&Enemies[id]);
-    Score -= 10;
+    player.score -= 10;
     return;
   }
 
@@ -2275,7 +2307,7 @@ void UpdateAsteroid(int id) {
       (screenSize.y - 100.0f)) {
     // asteroid made it through
     PerformKillAsteroid(&Asteroids[id]);
-    Score -= 20;
+    player.score -= 20;
     return;
   }
   if (Asteroids[id].position.x + Asteroids[id].size <= 0 ||
@@ -2329,7 +2361,7 @@ void UpdateFragment(int id) {
   }
   if (Fragments[id].position.y + Fragments[id].size >= (screenSize.y - 100.0f)) {
     PerformKillAsteroid(&Fragments[id]);
-    Score -= 10;
+    player.score -= 10;
     return;
   }
   if ((Fragments[id].position.x + Fragments[id].size <= 0) || (Fragments[id].position.x >= screenSize.x)) {
@@ -2446,7 +2478,7 @@ void DrawShieldBar() {
 
 void DrawExpBar() {
   Rectangle bar = {100, screenSize.y - 30, screenSize.x - 100, 20};
-  float percent = (float)Score / 10000;
+  float percent = (float)player.score / 10000;
   DrawRectangle(bar.x, bar.y, bar.width, bar.height, GRAY);
   DrawText("Progress:", bar.x - MeasureText("Progress:", 20), bar.y + 2, 20,
            RAYWHITE);
