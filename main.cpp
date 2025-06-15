@@ -859,7 +859,7 @@ int NewPlayerBullet(Vector2 position, int style, float lifetime, Color tint,
     Bullets[id].tint = tint;
     Bullets[id].player_bullet = true;
 
-    Bullets[id].direction = calculateBulletTrajectory(Bullets[id].position, player.movement, player.target, player.shotSpeed);
+    Bullets[id].direction = calculateBulletTrajectory(Bullets[id].position, Vector2Scale(player.movement, player.speed.x), player.target, player.shotSpeed);
         // using enhanced shot targeting
         // GetShotSpeed(playerShotSpread, i, playerShotSpeed, -1.0f);
     Bullets[id].damage = player.shotPower;
