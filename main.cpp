@@ -259,6 +259,7 @@ struct Asteroid {
   float rotation;
   int metal;
   int metal_amount;
+  float alpha; // for fade out effects
 };
 
 struct Popup {
@@ -328,6 +329,7 @@ void ResetBullet(Bullet *bullet);
 void ResetAsteroid(Asteroid *asteroid);
 void ResetPowerup(Powerup *powerup);
 Rectangle getBulletRec(Bullet &bullet);
+Vector2 getAsteroidCenter(const Asteroid& asteroid);
 Rectangle getAsteroidRec(Asteroid &asteroid);
 Rectangle getPlayerRec(void);
 Rectangle getEnemyRec(Enemy &enemy);
@@ -1101,7 +1103,7 @@ void DrawPlayer() {
   } else if ((player.shield > 0) || player.shieldActivating ||
              player.shieldDeactivating) {
     DrawShieldTexture(player.shieldFrame, player.pos, player.size,
-                      player.shield / player.shieldMax, WHITE);
+                      (float)player.shield / player.shieldMax, WHITE);
     // DrawCircleV(Vector2{playerPos.x+(playerSize.x*0.5f),
     // playerPos.y+(playerSize.y*0.5f)}, (playerSize.x*0.5f)+playerShield,
     // YELLOW);
@@ -1571,28 +1573,27 @@ int NewAsteroid(int type) {
   Asteroids[id].rotation_speed = (GetRandomValue(20, 40) / 10.0f) * 50;
   Asteroids[id].metal = GetRandomValue(1, NUM_METALS - 1);
   Asteroids[id].metal_amount = GetRandomValue(0, 1 + (scoreMult * 2));
+  Asteroids[id].alpha = 1.0f;
 
   return id;
 }
 
 // spawn a fragment from an asteroid with specific properties
-int NewFragment(int type, int size, Vector2 position, int durability, int metal,
-                int metal_amt) {
+int NewFragment(Vector2 pos, Vector2 vel, float size, float mass, int metal, int metal_amt) {
   int id = FindEmptyFragment(Fragments);
   if (id == -1)
-    return -1; // didn'ot find a fragment slot open
-  Fragments[id].type = type;
+    return -1; // didn't find a fragment slot open
+  Fragments[id].type = 1;
   Fragments[id].size = size;
   Fragments[id].active = true;
-  Fragments[id].position = position;
-  Fragments[id].direction =
-      Vector2Scale(Vector2Normalize(Vector2{GetRandomValue(-5, 5) / 10.0f, 1}),
-                   AsteroidSpeed);
+  Fragments[id].position = pos;
+  Fragments[id].direction = vel;
   Fragments[id].lifetime = 20;
-  Fragments[id].durability = Fragments[id].durability_max = durability;
+  Fragments[id].durability = Fragments[id].durability_max = mass;
   Fragments[id].rotation_speed = (GetRandomValue(20, 40) / 10.0f) * 50;
   Fragments[id].metal = metal;
   Fragments[id].metal_amount = metal_amt;
+  Fragments[id].alpha = 1.0f;
 
   return id;
 }
@@ -1814,6 +1815,43 @@ void PerformKillBullet(Bullet *bullet) { bullet->lifetime = -1; }
 void PerformKillAsteroid(Asteroid *asteroid) { asteroid->lifetime = -1; }
 void PerformKillPowerup(Powerup *powerup) { powerup->lifetime = -1; }
 
+void performAsteroidExplosion(const Asteroid& asteroid, const Vector2& impactPoint, int particleCount = 15) {
+  // calculate impact direction for realistic particle spread
+  Vector2 asteroidCenter = getAsteroidCenter(asteroid);
+  float impactDx = impactPoint.x - asteroidCenter.x;
+  float impactDy = impactPoint.y - asteroidCenter.y;
+  float impactAngle = std::atan2(impactDy, impactDx);
+
+  for (int i=0;i<particleCount;i++) {
+    // generate particle properties
+    float particleSize = (GetRandomValue(5, 30) / 10.0f) * (asteroid.durability / 10.0f);
+    float particleMass = particleSize * particleSize * 0.1f;
+
+    // create spread pattern - more particles in impact direction
+    float spreadAngle;
+    if (i < particleCount * 0.7f) {
+       // 70% of particles in forward cone (impact direction)
+       spreadAngle = impactAngle + (rand() % 120 - 60) * M_PI / 180.0f;
+    } else {
+      spreadAngle = GetRandomValue(0, 20 * M_PI) / 10.0f;
+    }
+    float particleSpeed = GetRandomValue(50, 250) / 10.0f;
+
+    // add some randomness to speed based on distance from impact
+    float distanceFromImpact = std::sqrt(impactDx * impactDx + impactDy * impactDy);
+    float speedMultiplier = 1.0f + (10.0f / (distanceFromImpact + 1.0f));
+    particleSpeed *= speedMultiplier;
+
+    Vector2 particleVel = {asteroid.direction.x + std::cos(spreadAngle) * particleSpeed,
+                          asteroid.direction.y + std::sin(spreadAngle) * particleSpeed};
+    // Slightly randomize starting position
+    Vector2 particlePos = {impactPoint.x + (rand() % 20 - 10) / 10.0f, impactPoint.y + (rand() % 20 - 10) / 10.0f};
+
+    int metal = asteroid.metal;
+    NewFragment(particlePos, particleVel, particleSize, particleMass, metal, 1);
+  }
+}
+
 void PerformFragmentAsteroid(Asteroid *asteroid) {
   // check if there's enough metal to spread between smaller Asteroids
   int newFragments = GetRandomValue(2, 4);
@@ -1822,9 +1860,9 @@ void PerformFragmentAsteroid(Asteroid *asteroid) {
     // @TODO -- make this more random with the possibility of spawning
     // both large and small fragments that are proportional in size to
     // the parent asteroid
-    NewFragment(1, asteroid->size / newFragments, asteroid->position,
-                asteroid->durability_max / newFragments, asteroid->metal,
-                asteroid->metal_amount / newFragments);
+    // NewFragment(1, asteroid->size / newFragments, asteroid->position,
+    //             asteroid->durability_max / newFragments, asteroid->metal,
+    //             asteroid->metal_amount / newFragments);
   }
 }
 
@@ -1881,14 +1919,25 @@ void PerformHitEnemy(Bullet &bullet, Enemy &enemy) {
 
 void PerformHitAsteroid(Bullet &bullet, Asteroid &hit) {
   PerformKillBullet(&bullet);
+  if (hit.type != 2) return;
   if (hit.durability > (bullet.damage - 1)) {
+    // shrink asteroid and create debris
     hit.durability -= Clamp((bullet.damage), 0, hit.durability);
+    // clamp size of asteroid to a min of 5 so we can still see it
+    hit.size -= Clamp((bullet.damage), 5, hit.size);
     PlaySound(sounds[ASTEROID_HIT]);
+    Vector2 impactPoint = {bullet.position.x, bullet.position.y};
+    // calculate how much debris each bullet caused
+    // at least 1, max of 10, or cap at asteroid durability
+    int numDebris = GetRandomValue(1, fmaxf(10, hit.durability));
+    performAsteroidExplosion(hit, impactPoint, numDebris);
+
   } else {
     PerformKillAsteroid(&hit);
     if (hit.type == 2) {
       // fragent larger asteroid into several smaller ones
-      PerformFragmentAsteroid(&hit);
+      // don't fragment, we are using particles now
+      //PerformFragmentAsteroid(&hit);
     }
     // PlaySound(sounds[SUCCESS]);
     if (GetRandomValue(1, 100) < 33) { // 33% chance to drop a resource collectible
@@ -2053,10 +2102,15 @@ Vector2 getPlayerCenter(void) {
                  player.pos.y + (player.size.y * 0.5f)};
 }
 
+Vector2 getAsteroidCenter(const Asteroid& asteroid) {
+  return Vector2{asteroid.position.x + (asteroid.size * 0.5f),
+                 asteroid.position.y + (asteroid.size * 0.5f)};
+}
+
 float getPlayerShieldRadius(void) {
   if (player.shield <= 0)
     return 0.0f;
-  return player.size.x * 0.5f + (20.0f * (player.shield / player.shieldMax));
+  return player.size.x * 0.5f + (20.0f * ((float)player.shield / player.shieldMax));
 }
 
 void UpdateBackground(void) {
@@ -2267,24 +2321,30 @@ void UpdateFragment(int id) {
   }
   if (!player.timeFrozen) {
     Fragments[id].position =
-        Vector2Add(Fragments[id].position,
-                   Vector2Scale(Fragments[id].direction, GetFrameTime()));
+        Vector2Add(Fragments[id].position, Vector2Scale(Fragments[id].direction, GetFrameTime()));
     Fragments[id].rotation += Fragments[id].rotation_speed * GetFrameTime();
   }
   if (Fragments[id].rotation >= 360.0f) {
     Fragments[id].rotation -= 360.0f;
   }
-  if (Fragments[id].position.y + Fragments[id].size >=
-      (screenSize.y - 100.0f)) {
+  if (Fragments[id].position.y + Fragments[id].size >= (screenSize.y - 100.0f)) {
     PerformKillAsteroid(&Fragments[id]);
     Score -= 10;
     return;
   }
-  if ((Fragments[id].position.x + Fragments[id].size <= 0) ||
-      (Fragments[id].position.x >= screenSize.x)) {
+  if ((Fragments[id].position.x + Fragments[id].size <= 0) || (Fragments[id].position.x >= screenSize.x)) {
     PerformKillAsteroid(&Fragments[id]);
     return;
   }
+  // apply drag/friction coefficient
+  Fragments[id].direction = Vector2Scale(Fragments[id].direction, 0.998f);
+
+  // fade out near end of life
+  if (Fragments[id].lifetime <= 0.8f) {
+    Fragments[id].alpha = (Fragments[id].lifetime / 0.8f);
+  }
+
+
   Rectangle fragmentRect = getAsteroidRec(Fragments[id]);
 
   if (!player.GOD_MODE && CheckCollisionRecs(fragmentRect, getPlayerRec())) {
