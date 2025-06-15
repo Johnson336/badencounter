@@ -135,6 +135,63 @@ const Rectangle baddie_size_matrix[NUM_BADDIE_TYPES] = {
 
 };
 
+struct Player {
+  bool autoShoot = false;
+  bool GOD_MODE = false;
+  Vector2 pos = {0};
+  Vector2 target = {0};
+  Vector2 movement = {0};
+  float rotation = 0;
+  Vector2 prevPos = {0};
+  Vector2 size = {32.0f, 32.0f};
+  bool dead = false;
+  bool won = false;
+  Vector2 speed = {150.0f, 0.0f};
+  int hull = 3;
+  int hullMax = 3;
+  int hullStrength = 1; // mitigates damage
+  int shield = 0;
+  int shieldMax = 0;
+  int shotSpeed = 100;
+  float shotReload = 10.0f / 60.0f;
+  float shotTimer = 0;
+  bool canShoot = true;
+  int shotPower = 1;
+  int shotSpread = 1;
+  int shotStyle = 0;
+
+  float shieldRegenTime = 2.0f;
+  float shieldRegenTimer = 0;
+  float shieldRegenAmt = 0.02f;
+
+  // animation variables
+  float shieldFrameTime = 0.25f; // secs between shield frame transitions
+  float shieldFrameTimer = 0.0f;
+  int shieldFrames = 4;
+  int shieldFrame = 0;
+  bool shieldActivating = false;
+  bool shieldDeactivating = false;
+
+  // player exploding variables
+  bool exploding = false;
+  int expFrame = 0;
+  float expTimer = 0;
+
+  // player alert variables
+  float alertTimer = 0;
+  float flashTime = 0.5f;
+  float flashTimer = 0;
+
+  double gameTime = 0;
+  double endTime = 0;
+
+  // player time freeze variables
+  float freezeTime = 1.0f;
+  float freezeTimer = freezeTime;
+  bool timeFrozen = false;
+  int Score = 0;
+};
+
 struct Baddie {
   bool boss;
   int type;
@@ -243,6 +300,7 @@ Bullet Bullets[MAX_BULLETS];
 Powerup Powerups[MAX_POWERUPS];
 Asteroid Asteroids[MAX_ASTEROIDS];
 Asteroid Fragments[MAX_FRAGMENTS];
+Player player; // main player structure
 
 Popup achievement;
 Popup death = {false, 20.0f, Vector2{screenSize.x * 0.5f, screenSize.y * 0.5f}, Vector2{300, 50}, RED, 1, 0.25f, 0};
@@ -296,62 +354,64 @@ void DrawDeathScreen(void);
 void DrawWinScreen(void);
 void UpdateBackground(void);
 
-// PLAYER VARIABLES
-bool autoShoot = false;
-bool GOD_MODE = false;
-Vector2 playerPos = {0};
-Vector2 playerTarget = {0};
-float playerRotation = 0.0f;
-Vector2 playerPreviousPos = {0};
-Vector2 playerSize = {32.0f, 32.0f};
-bool playerDead = false;
-bool playerWon = false;
 
-float playerSpeed = 150.0f; // pixels per frame
-                           // start with 3 hull
-int playerHull = 3;
-int playerHullMax = 3;
-int playerHullStrength = 1; // mitigates 1 damage
-                            // start with no shields
-float playerShield = 0;
-float playerShieldMax = 0;
-int playerShotSpeed = 100;
-float playerShotReload = 10.0f / 60.0f;
-float playerShotTimer = 0;
-bool playerCanShoot = true;
-int playerShotPower = 1;
-int playerShotSpread = 1;
-int playerShotStyle = 0;
 
-float playerShieldRegenTime = 2.0f;
-float playerShieldRegenTimer = 0;
-float playerShieldRegenAmt = 0.02f;
-
-// shield animation VARIABLES
-float playerShieldFrameTime = 0.25f; // sec between shield frame transitions
-float playerShieldFrameTimer = 0.0f;
-int playerShieldFrames = 4;
-int playerShieldFrame = 0;
-bool playerShieldActivating = false;
-bool playerShieldDeactivating = false;
-
-// player exploding variables
-bool playerExploding = false;
-int playerExpFrame = 0;
-float playerExpTimer = 0;
-
-// player alert variables
-float playerAlertTimer = 0;
-
-float playerFlashTime = 0.5f;
-float playerFlashTimer = 0;
-double gameTime = 0;
-double endTime = 0;
-
-// player time freeze variables
-float playerFreezeTime = 1.0f;
-float playerFreezeTimer = playerFreezeTime;
-bool playerTimeFrozen = false;
+// // PLAYER VARIABLES
+// bool autoShoot = false;
+// bool GOD_MODE = false;
+// Vector2 playerPos = {0};
+// Vector2 playerTarget = {0};
+// float playerRotation = 0.0f;
+// Vector2 playerPreviousPos = {0};
+// Vector2 playerSize = {32.0f, 32.0f};
+// bool playerDead = false;
+// bool playerWon = false;
+//
+// float playerSpeed = 150.0f; // pixels per frame
+//                            // start with 3 hull
+// int playerHull = 3;
+// int playerHullMax = 3;
+// int playerHullStrength = 1; // mitigates 1 damage
+//                             // start with no shields
+// float playerShield = 0;
+// float playerShieldMax = 0;
+// int playerShotSpeed = 100;
+// float playerShotReload = 10.0f / 60.0f;
+// float playerShotTimer = 0;
+// bool playerCanShoot = true;
+// int playerShotPower = 1;
+// int playerShotSpread = 1;
+// int playerShotStyle = 0;
+//
+// float playerShieldRegenTime = 2.0f;
+// float playerShieldRegenTimer = 0;
+// float playerShieldRegenAmt = 0.02f;
+//
+// // shield animation VARIABLES
+// float playerShieldFrameTime = 0.25f; // sec between shield frame transitions
+// float playerShieldFrameTimer = 0.0f;
+// int playerShieldFrames = 4;
+// int playerShieldFrame = 0;
+// bool playerShieldActivating = false;
+// bool playerShieldDeactivating = false;
+//
+// // player exploding variables
+// bool playerExploding = false;
+// int playerExpFrame = 0;
+// float playerExpTimer = 0;
+//
+// // player alert variables
+// float playerAlertTimer = 0;
+//
+// float playerFlashTime = 0.5f;
+// float playerFlashTimer = 0;
+// double gameTime = 0;
+// double endTime = 0;
+//
+// // player time freeze variables
+// float playerFreezeTime = 1.0f;
+// float playerFreezeTimer = playerFreezeTime;
+// bool playerTimeFrozen = false;
 
 float AsteroidSpeed = 100.0f;
 float EnemyShotSpeed = 200.0f;
@@ -535,6 +595,63 @@ Vector2 GetScreenSize(void) {
   // return out;
 }
 
+void ResetPlayer(void) {
+  player.autoShoot = false;
+  player.GOD_MODE = false;
+  player.pos = {0};
+  player.target = {0};
+  player.rotation = 0;
+  player.prevPos = {0};
+  player.size = {32.0f, 32.0f};
+  player.dead = false;
+  player.won = false;
+  player.speed = {150.0f, 0.0f};
+  player.hull = 3;
+  player.hullMax = 3;
+  player.hullStrength = 1; // mitigates damage
+  player.shield = 0;
+  player.shieldMax = 0;
+  player.shotSpeed = 100;
+  player.shotReload = 10.0f / 60.0f;
+  player.shotTimer = 0;
+  player.canShoot = true;
+  player.shotPower = 1;
+  player.shotSpread = 1;
+  player.shotStyle = 0;
+
+  player.shieldRegenTime = 2.0f;
+  player.shieldRegenTimer = 0;
+  player.shieldRegenAmt = 0.02f;
+
+  // animation variables
+  player.shieldFrameTime = 0.25f; // secs between shield frame transitions
+  player.shieldFrameTimer = 0.0f;
+  player.shieldFrames = 4;
+  player.shieldFrame = 0;
+  player.shieldActivating = false;
+  player.shieldDeactivating = false;
+
+  // player exploding variables
+  player.exploding = false;
+  player.expFrame = 0;
+  player.expTimer = 0;
+
+  // player alert variables
+  player.alertTimer = 0;
+  player.flashTime = 0.5f;
+  player.flashTimer = 0;
+
+  player.gameTime = 0;
+  player.endTime = 0;
+
+  // player time freeze variables
+  player.freezeTime = 1.0f;
+  player.freezeTimer = player.freezeTime;
+  player.timeFrozen = false;
+  player.Score = 0;
+  player.gameTime = GetTime();
+}
+
 void InitGame(void) {
 
   screenSize = GetScreenSize();
@@ -559,44 +676,8 @@ void InitGame(void) {
   if (IsAudioDeviceReady())
     PlayBackgroundMusic();
 
-  autoShoot = false;
-  GOD_MODE = false;
-  playerPos = {0};
-  playerPreviousPos = {0};
-  playerDead = false;
-  playerWon = false;
+  ResetPlayer();
 
-  playerSpeed = 150.0f; // pixels per frame
-                       // start with 3 hull
-  playerHull = 3;
-  playerHullMax = 3;
-  playerHullStrength = 1; // mitigates 1 damage
-                          // start with no shields
-  playerShield = 0;
-  playerShieldMax = 0;
-
-  // shield animation variables
-  playerShieldFrame = 0;
-  playerShieldActivating = false;
-  playerShieldDeactivating = false;
-
-  // player explosion variables
-  playerExploding = false;
-  playerExpFrame = 0;
-  playerExpTimer = 0;
-
-  // player alert variable
-  playerAlertTimer = 0;
-
-  playerShotSpeed = 100;
-  playerShotReload = 10.0f / 60.0f;
-  playerShotTimer = 0;
-  playerCanShoot = true;
-  playerShotPower = 1;
-  playerShotSpread = 1;
-  playerShotStyle = 0;
-  Score = 0;
-  gameTime = GetTime();
   movingBackgroundPosY = 0;
   musicPlayed = 0;
 
@@ -621,14 +702,14 @@ void InitGame(void) {
     NewBaddie();
   }
 
-  playerPos = {screenSize.x / 2.0f, screenSize.y - (100.0f + playerSize.y)};
-  SetMousePosition(playerPos.x, playerPos.y);
+  player.pos = {screenSize.x / 2.0f, screenSize.y - (100.0f + player.size.y)};
+  SetMousePosition(player.pos.x, player.pos.y);
 }
 
 void DrawShipTexture(int x, int y, Vector2 coords, float rotation, Color hitColor) {
   DrawTexturePro(textures[SHIPS], Rectangle{8.0f * x, 8.0f * y, 8, 8},
-                 Rectangle{coords.x+(playerSize.x*0.5f), coords.y+(playerSize.y*0.5f), playerSize.x, playerSize.y},
-                 {playerSize.x*0.5f, playerSize.y*0.5f}, rotation, hitColor);
+                 Rectangle{coords.x+(player.size.x*0.5f), coords.y+(player.size.y*0.5f), player.size.x, player.size.y},
+                 {player.size.x*0.5f, player.size.y*0.5f}, rotation, hitColor);
   // DrawRectangleLines(coords.x, coords.y, playerSize.x, playerSize.y, WHITE);
 }
 
@@ -752,14 +833,13 @@ Vector2 calculateBulletTrajectory(const Vector2& shipPos, const Vector2& shipVel
   }
 
   // normalize direction vector
-  float dirX = dx / distance;
-  float dirY = dy / distance;
+  Vector2 normalized = {dx / distance, dy / distance};
 
   // calculate bullet velocity relative to ship
-  Vector2 bulletVelRelative(dirX * bulletSpeed, dirY * bulletSpeed);
+  Vector2 bulletVelRelative = Vector2Scale(normalized, bulletSpeed);
 
   // add ship's velocity to get absolute bullet velocity
-  Vector2 bulletVelAbsolute = Vector2(bulletVelRelative.x + shipVelocity.x, bulletVelRelative.y + shipVelocity.y);
+  Vector2 bulletVelAbsolute = Vector2Add(bulletVelRelative, shipVelocity);
 
   return bulletVelAbsolute; 
 }
@@ -767,7 +847,7 @@ Vector2 calculateBulletTrajectory(const Vector2& shipPos, const Vector2& shipVel
 int NewPlayerBullet(Vector2 position, int style, float lifetime, Color tint,
                     bool boss) {
   int id = -1;
-  for (int i = 0; i < playerShotSpread; i++) {
+  for (int i = 0; i < player.shotSpread; i++) {
     id = FindEmptyBullet(Bullets);
     if (id == -1)
       return -1; // nope
@@ -778,20 +858,11 @@ int NewPlayerBullet(Vector2 position, int style, float lifetime, Color tint,
     Bullets[id].lifetime = lifetime;
     Bullets[id].tint = tint;
     Bullets[id].player_bullet = true;
-    Vector2 playerMovement = {0, 0};
-    if (playerPreviousPos.x < playerPos.x)
-      playerMovement.x = playerSpeed;
-    if (playerPreviousPos.x > playerPos.x)
-      playerMovement.x = -playerSpeed;
-    if (playerPreviousPos.y < playerPos.y)
-      playerMovement.y = playerSpeed;
-    if (playerPreviousPos.y > playerPos.y)
-      playerMovement.y = -playerSpeed;
 
-    Bullets[id].direction = calculateBulletTrajectory(playerPos, playerMovement, playerTarget, playerShotSpeed);
+    Bullets[id].direction = calculateBulletTrajectory(Bullets[id].position, player.movement, player.target, player.shotSpeed);
         // using enhanced shot targeting
         // GetShotSpeed(playerShotSpread, i, playerShotSpeed, -1.0f);
-    Bullets[id].damage = playerShotPower;
+    Bullets[id].damage = player.shotPower;
     Bullets[id].type = style;
     Bullets[id].size = Vector2{48.0f, 48.0f};
   }
@@ -893,38 +964,38 @@ Vector2 GetShotSpeed(int totalShots, int currentShot, float speed,
 }
 
 void UpdatePlayerShield(void) {
-  if (playerExploding || playerDead || playerWon)
+  if (player.exploding || player.dead || player.won)
     return;
-  if ((playerShield < playerShieldMax)) {
-    if (playerShieldRegenTimer == 0)
-      playerShield += playerShieldRegenAmt * GetFrameTime();
+  if ((player.shield < player.shieldMax)) {
+    if (player.shieldRegenTimer == 0)
+      player.shield += player.shieldRegenAmt * GetFrameTime();
     else {
-      playerShieldRegenTimer -= GetFrameTime();
-      if (playerShieldRegenTimer <= 0) {
-        playerShieldRegenTimer = 0;
-        playerShieldActivating = true;
+      player.shieldRegenTimer -= GetFrameTime();
+      if (player.shieldRegenTimer <= 0) {
+        player.shieldRegenTimer = 0;
+        player.shieldActivating = true;
         PlaySound(sounds[SHIELD_RAISE]);
       }
     }
   }
-  if (playerShieldActivating) {
-    playerShieldFrameTimer += GetFrameTime();
-    if (playerShieldFrameTimer >= playerShieldFrameTime) {
-      playerShieldFrameTimer = 0;
-      playerShieldFrame++;
-      if (playerShieldFrame >= playerShieldFrames - 1) {
-        playerShieldFrame = 3;
-        playerShieldActivating = false;
+  if (player.shieldActivating) {
+    player.shieldFrameTimer += GetFrameTime();
+    if (player.shieldFrameTimer >= player.shieldFrameTime) {
+      player.shieldFrameTimer = 0;
+      player.shieldFrame++;
+      if (player.shieldFrame >= player.shieldFrames - 1) {
+        player.shieldFrame = 3;
+        player.shieldActivating = false;
       }
     }
-  } else if (playerShieldDeactivating) {
-    playerShieldFrameTimer += GetFrameTime();
-    if (playerShieldFrameTimer >= playerShieldFrameTime) {
-      playerShieldFrameTimer = 0;
-      playerShieldFrame--;
-      if (playerShieldFrame <= 0) {
-        playerShieldFrame = 0;
-        playerShieldDeactivating = false;
+  } else if (player.shieldDeactivating) {
+    player.shieldFrameTimer += GetFrameTime();
+    if (player.shieldFrameTimer >= player.shieldFrameTime) {
+      player.shieldFrameTimer = 0;
+      player.shieldFrame--;
+      if (player.shieldFrame <= 0) {
+        player.shieldFrame = 0;
+        player.shieldDeactivating = false;
       }
     }
   }
@@ -944,17 +1015,17 @@ void UpdateBaddieShield(Baddie &baddie) {
   }
   if (baddie.shield_activating) {
     baddie.shield_frame_timer += GetFrameTime();
-    if (baddie.shield_frame_timer >= playerShieldFrameTime) {
+    if (baddie.shield_frame_timer >= player.shieldFrameTime) {
       baddie.shield_frame_timer = 0;
       baddie.shield_frame++;
-      if (baddie.shield_frame >= playerShieldFrames - 1) {
+      if (baddie.shield_frame >= player.shieldFrames - 1) {
         baddie.shield_frame = 3;
         baddie.shield_activating = false;
       }
     }
   } else if (baddie.shield_deactivating) {
     baddie.shield_frame_timer += GetFrameTime();
-    if (baddie.shield_frame_timer >= playerShieldFrameTime) {
+    if (baddie.shield_frame_timer >= player.shieldFrameTime) {
       baddie.shield_frame_timer = 0;
       baddie.shield_frame--;
       if (baddie.shield_frame <= 0) {
@@ -996,41 +1067,41 @@ float getRotationAngleDegrees(const Vector2& from, const Vector2& to) {
 }
 
 void DrawPlayer() {
-  if (playerExploding || playerDead) {
+  if (player.exploding || player.dead) {
     DrawMiscTexture(
-        Rectangle{(9 * 8.0f) + (8.0f * playerExpFrame), 6 * 8.0f, 8.0f, 8.0f},
-        Rectangle{playerPos.x - (playerSize.x * 0.5f),
-                  playerPos.y - (playerSize.y * 0.5f), playerSize.x * 2.0f,
-                  playerSize.y * 2.0f},
+        Rectangle{(9 * 8.0f) + (8.0f * player.expFrame), 6 * 8.0f, 8.0f, 8.0f},
+        Rectangle{player.pos.x - (player.size.x * 0.5f),
+                  player.pos.y - (player.size.y * 0.5f), player.size.x * 2.0f,
+                  player.size.y * 2.0f},
         WHITE);
     return;
   }
   Color hitColor = WHITE;
-  if (playerFlashTimer > 0)
-    playerFlashTimer -= GetFrameTime();
-  if (playerFlashTimer <= 0)
+  if (player.flashTimer > 0)
+    player.flashTimer -= GetFrameTime();
+  if (player.flashTimer <= 0)
     hitColor = WHITE;
   else
     hitColor = YELLOW;
   int shipdirection;
-  if (playerPreviousPos.x == playerPos.x)
+  if (player.prevPos.x == player.pos.x)
     shipdirection = 1;
-  else if (playerPreviousPos.x - playerPos.x > 1)
+  else if (player.prevPos.x - player.pos.x > 1)
     shipdirection = 0;
-  else if (playerPreviousPos.x - playerPos.x < -1)
+  else if (player.prevPos.x - player.pos.x < -1)
     shipdirection = 2;
   else
     shipdirection = 1;
 
   // draw player ship with direction
-  DrawShipTexture(shipdirection, 0, playerPos, playerRotation, hitColor);
+  DrawShipTexture(shipdirection, 0, player.pos, player.rotation, hitColor);
   // draw shield shields
-  if (GOD_MODE) {
-    DrawShieldTexture(playerShieldFrames - 1, playerPos, playerSize, 0, RED);
-  } else if ((playerShield > 0) || playerShieldActivating ||
-             playerShieldDeactivating) {
-    DrawShieldTexture(playerShieldFrame, playerPos, playerSize,
-                      playerShield / playerShieldMax, WHITE);
+  if (player.GOD_MODE) {
+    DrawShieldTexture(player.shieldFrames - 1, player.pos, player.size, 0, RED);
+  } else if ((player.shield > 0) || player.shieldActivating ||
+             player.shieldDeactivating) {
+    DrawShieldTexture(player.shieldFrame, player.pos, player.size,
+                      player.shield / player.shieldMax, WHITE);
     // DrawCircleV(Vector2{playerPos.x+(playerSize.x*0.5f),
     // playerPos.y+(playerSize.y*0.5f)}, (playerSize.x*0.5f)+playerShield,
     // YELLOW);
@@ -1040,16 +1111,16 @@ void DrawPlayer() {
 
 void DrawPlayerTarget() {
 
-  DrawLine(playerTarget.x-5, playerTarget.y, playerTarget.x+5, playerTarget.y, RED);
-  DrawLine(playerTarget.x, playerTarget.y-5, playerTarget.x, playerTarget.y+5, RED);
-  DrawLineV(playerTarget, getPlayerCenter(), GRAY);
+  DrawLine(player.target.x-5, player.target.y, player.target.x+5, player.target.y, RED);
+  DrawLine(player.target.x, player.target.y-5, player.target.x, player.target.y+5, RED);
+  DrawLineV(player.target, getPlayerCenter(), GRAY);
 }
 
 void DrawPlayerFreezeTimer(void) {
-  DrawRing(Vector2{playerPos.x - (playerSize.x * 0.1f),
-                   playerPos.y + (playerSize.y * 0.5f)},
-           playerSize.x - 3.0f, playerSize.x, 135.0f,
-           135.0f + (playerFreezeTimer * 90.0f), 5, RAYWHITE);
+  DrawRing(Vector2{player.pos.x - (player.size.x * 0.1f),
+                   player.pos.y + (player.size.y * 0.5f)},
+           player.size.x - 3.0f, player.size.x, 135.0f,
+           135.0f + (player.freezeTimer * 90.0f), 5, RAYWHITE);
 }
 
 void DrawBaddie(int id) {
@@ -1081,7 +1152,7 @@ void DrawBaddie(int id) {
     Baddies[id].flash_timer -= GetFrameTime();
 
   if (Baddies[id].flash_timer <= 0) {
-    hitColor = (playerTimeFrozen ? SKYBLUE : WHITE);
+    hitColor = (player.timeFrozen ? SKYBLUE : WHITE);
   } else
     hitColor = YELLOW;
 
@@ -1143,7 +1214,7 @@ void DrawBullet(int id) {
 void DrawAsteroid(int id) {
   DrawAsteroidTexture(Asteroids[id].type, Asteroids[id].position,
                       Asteroids[id].size, Asteroids[id].rotation,
-                      playerTimeFrozen ? SKYBLUE : WHITE);
+                      player.timeFrozen ? SKYBLUE : WHITE);
   // Drawing bounding box for debug
   // Rectangle rec = getAsteroidRec(Asteroids[id]);
   // DrawRectangleLines(rec.x, rec.y, rec.width, rec.height, WHITE);
@@ -1152,7 +1223,7 @@ void DrawAsteroid(int id) {
 void DrawFragment(int id) {
   DrawAsteroidTexture(Fragments[id].type, Fragments[id].position,
                       Fragments[id].size, Fragments[id].rotation,
-                      playerTimeFrozen ? SKYBLUE : WHITE);
+                      player.timeFrozen ? SKYBLUE : WHITE);
   // Drawing bounding box for debug
   // Rectangle rec = getAsteroidRec(Fragments[id]);
   // DrawRectangleLines(rec.x, rec.y, rec.width, rec.height, WHITE);
@@ -1174,7 +1245,7 @@ void StopAllMusic(void) {
 
 void ProcessPlayerInput(void) {
   if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-    if (playerDead || playerWon)
+    if (player.dead || player.won)
       InitGame();
   }
 
@@ -1186,62 +1257,96 @@ void ProcessPlayerInput(void) {
     }
   }
 
-  if (player_game_state != GAME_STATE_PLAYING || playerExploding ||
-      playerDead || playerWon)
+  if (player_game_state != GAME_STATE_PLAYING || player.exploding ||
+      player.dead || player.won)
     return; // abort input handling when not in a valid playing state
 
   // handle freeze time
   if (IsKeyDown(keymap[keyAbility])) {
-    playerTimeFrozen = (playerFreezeTimer > 0.0f);
-  } else if (playerTimeFrozen) {
-    playerTimeFrozen = false;
+    player.timeFrozen = (player.freezeTimer > 0.0f);
+  } else if (player.timeFrozen) {
+    player.timeFrozen = false;
   }
 
   if (IsKeyPressed(keymap[keyToggleAutoshoot]))
-    autoShoot = !autoShoot;
+    player.autoShoot = !player.autoShoot;
 
   if (IsKeyPressed(keymap[keyGodMode])) {
-    GOD_MODE = !GOD_MODE;
+    player.GOD_MODE = !player.GOD_MODE;
   }
 
   if (IsKeyPressed(KEY_EQUAL)) {
-    playerShotStyle++;
+    player.shotStyle++;
   }
   if (IsKeyPressed(KEY_MINUS)) {
-    playerShotStyle--;
+    player.shotStyle--;
   }
 
   // player movement and shooting
-  float speed = playerSpeed * GetFrameTime();
+  float speed = player.speed.x * GetFrameTime();
   if (IsKeyDown(keymap[keyShoot]) || IsMouseButtonDown(mouseKeymap[mouseShoot]) ||
-      autoShoot) {
-    if (playerCanShoot) {
-      playerCanShoot = false;
+      player.autoShoot) {
+    if (player.canShoot) {
+      player.canShoot = false;
 
-      NewPlayerBullet(playerPos, playerShotStyle, ShotLifetime, GREEN, false);
+      NewPlayerBullet(player.pos, player.shotStyle, ShotLifetime, GREEN, false);
     }
   } else
     speed *= 2;
 
-  playerPreviousPos = playerPos;
-
-  if (IsKeyDown(KEY_UP) || IsKeyDown(keymap[keyMoveUp]))
-    playerPos.y -= speed;
-  if (IsKeyDown(KEY_DOWN) || IsKeyDown(keymap[keyMoveDown]))
-    playerPos.y += speed;
-  if (IsKeyDown(KEY_LEFT) || IsKeyDown(keymap[keyMoveLeft]))
-    playerPos.x -= speed;
-  if (IsKeyDown(KEY_RIGHT) || IsKeyDown(keymap[keyMoveRight]))
-    playerPos.x += speed;
-
+  // perform player rotation
+  // this needs to happen before player movement
+  // so we know which direction to move the player if using directional_movement
   Vector2 mouseCoords = GetMousePosition();
   //playerPos = mouseCoords;
-  playerTarget = mouseCoords;
+  player.target = mouseCoords;
+  player.rotation = getRotationAngleDegrees(getPlayerCenter(), player.target);
+ 
+  player.prevPos = player.pos;
+
+  player.movement = Vector2Zero();
+  bool FOUR_AXIS_MOVEMENT = false;
+
+  if (FOUR_AXIS_MOVEMENT) {
+    // movement is locked to four axis
+
+    if (IsKeyDown(KEY_UP) || IsKeyDown(keymap[keyMoveUp]))
+      player.movement.y = -1;
+    if (IsKeyDown(KEY_DOWN) || IsKeyDown(keymap[keyMoveDown]))
+      player.movement.y = 1;
+    if (IsKeyDown(KEY_LEFT) || IsKeyDown(keymap[keyMoveLeft]))
+      player.movement.x = -1;
+    if (IsKeyDown(KEY_RIGHT) || IsKeyDown(keymap[keyMoveRight]))
+      player.movement.x = 1;
+
+    player.pos = Vector2Add(player.pos, Vector2Scale(Vector2Normalize(player.movement), speed));
+  } else {
+    // directional movement relative to player target
+    Vector2 playerCenter = getPlayerCenter();
+    float dx = player.target.x - playerCenter.x;
+    float dy = player.target.y - playerCenter.y;
+    float dist = std::sqrt(dx * dx + dy * dy);
+
+    float normDx = dx / dist;
+    float normDy = dy / dist;
+
+    if (IsKeyDown(KEY_UP) || IsKeyDown(keymap[keyMoveUp]))
+      player.movement = Vector2Add(player.movement, {normDx, normDy});
+    if (IsKeyDown(KEY_DOWN) || IsKeyDown(keymap[keyMoveDown]))
+      player.movement = Vector2Add(player.movement, {-normDx, -normDy});
+    if (IsKeyDown(KEY_LEFT) || IsKeyDown(keymap[keyMoveLeft]))
+      player.movement = Vector2Add(player.movement, {normDy, -normDx});
+    if (IsKeyDown(KEY_RIGHT) || IsKeyDown(keymap[keyMoveRight]))
+      player.movement = Vector2Add(player.movement, {-normDy, normDx});
+
+    player.pos = Vector2Add(player.pos, Vector2Scale(player.movement, speed));
+    
+    
+  }
+
   // clamps player position within screen space
-  playerPos = Vector2Clamp(playerPos, Vector2{1.0f, 1.0f},
-                           Vector2{screenSize.x - 1.0f - playerSize.x,
-                                   screenSize.y - 1.0f - playerSize.y});
-  playerRotation = getRotationAngleDegrees(getPlayerCenter(), playerTarget);
+  player.pos = Vector2Clamp(player.pos, 
+                           Vector2{1.0f, 1.0f}, Vector2{screenSize.x - 1.0f - player.size.x, screenSize.y - 1.0f - player.size.y});
 }
 
 void ProcessPlayerState(void) {
@@ -1289,8 +1394,8 @@ void UpdateAndDraw(void) {
 
   UpdatePlayer();
   // update game objects
-  if (player_game_state == GAME_STATE_PLAYING && !playerExploding &&
-      !playerDead && !playerWon) {
+  if (player_game_state == GAME_STATE_PLAYING && !player.exploding &&
+      !player.dead && !player.won) {
     // Update background movement state
     UpdateBackground();
     // bullets
@@ -1380,9 +1485,9 @@ void UpdateAndDraw(void) {
   DrawText(TextFormat("Score %d", Score), 30, 30, 20, RED);
   DrawFPS(screenSize.x - 80, 20);
 
-  if (playerDead)
+  if (player.dead)
     DrawDeathScreen();
-  else if (playerWon)
+  else if (player.won)
     DrawWinScreen();
   else if (player_game_state == GAME_STATE_PAUSED) {
     DrawPauseMenu();
@@ -1430,7 +1535,7 @@ void DrawDeathScreen(void) {
 
   DrawText(TextFormat("You are DEAD\n\nFinal score: %d\n\nYou lasted %1.0f "
                       "seconds.\n\nClick or tap to fly again.",
-                      Score, endTime - gameTime),
+                      Score, player.endTime - player.gameTime),
            15, 405, 30, RAYWHITE);
 }
 
@@ -1440,7 +1545,7 @@ void DrawWinScreen(void) {
 
   DrawText(TextFormat("You have WON!!\n\nFinal score: %d\n\nWon in %1.0f "
                       "seconds!\n\nClick or tap to fly again",
-                      Score, endTime - gameTime),
+                      Score, player.endTime - player.gameTime),
            15, 405, 30, RAYWHITE);
 }
 
@@ -1533,7 +1638,7 @@ int NewBaddie() {
   Baddies[id].exp_timer = 0;
   if (Baddies[id].shield > 0) {
     Baddies[id].shield_activating = true;
-    Baddies[id].shield_frame_timer = playerShieldFrameTime;
+    Baddies[id].shield_frame_timer = player.shieldFrameTime;
     Baddies[id].shield_frame = 0;
     Baddies[id].shield_regen_amt = 0.5f;
   }
@@ -1573,8 +1678,8 @@ void UpdateBullet(int id) {
   }
 
   if (!Bullets[id].player_bullet) {
-    if (!GOD_MODE) {
-      if (playerShield > 0) {
+    if (!player.GOD_MODE) {
+      if (player.shield > 0) {
         if (CheckCollisionCircleRec(getPlayerCenter(), getPlayerShieldRadius(),
                                     getBulletRec(Bullets[id]))) {
           PerformHitPlayer(Bullets[id]);
@@ -1612,30 +1717,30 @@ void UpdateBullet(int id) {
 }
 
 void UpdatePlayer(void) {
-  if (Score >= 10000 && !GOD_MODE && !playerWon) {
+  if (Score >= 10000 && !player.GOD_MODE && !player.won) {
     PlaySound(sounds[WIN_TRUMPETS]);
-    endTime = GetTime();
-    playerWon = true;
+    player.endTime = GetTime();
+    player.won = true;
     StopAllMusic();
     nowPlaying = &music[WIN];
     PlayMusicStream(*nowPlaying);
     return;
   }
-  if (playerHull <= 0 && playerExploding) {
-    playerExpTimer += GetFrameTime();
-    if (playerExpTimer >= 0.2f) {
-      playerExpTimer = 0;
-      playerExpFrame++;
-      if (playerExpFrame > 3) {
-        playerExploding = false;
-        playerDead = true;
+  if (player.hull <= 0 && player.exploding) {
+    player.expTimer += GetFrameTime();
+    if (player.expTimer >= 0.2f) {
+      player.expTimer = 0;
+      player.expFrame++;
+      if (player.expFrame > 3) {
+        player.exploding = false;
+        player.dead = true;
       }
     }
     return;
-  } else if (!playerDead && playerHull <= 1) {
-    playerAlertTimer += GetFrameTime();
-    if (playerAlertTimer >= 2.0f) {
-      playerAlertTimer = 0;
+  } else if (!player.dead && player.hull <= 1) {
+    player.alertTimer += GetFrameTime();
+    if (player.alertTimer >= 2.0f) {
+      player.alertTimer = 0;
       PlaySound(sounds[ALERT_LOW_HULL]);
     }
   }
@@ -1643,23 +1748,23 @@ void UpdatePlayer(void) {
   UpdatePlayerShield();
 
   // update shot timer
-  if (!playerCanShoot) {
-    playerShotTimer -= GetFrameTime();
-    if (playerShotTimer <= 0) {
-      playerCanShoot = true;
-      playerShotTimer = playerShotReload;
+  if (!player.canShoot) {
+    player.shotTimer -= GetFrameTime();
+    if (player.shotTimer <= 0) {
+      player.canShoot = true;
+      player.shotTimer = player.shotReload;
     }
   }
 
   // update player freeze timer
-  if (playerTimeFrozen) {
-    playerFreezeTimer -= GetFrameTime();
-    if (playerFreezeTimer <= 0) {
-      playerTimeFrozen = false;
+  if (player.timeFrozen) {
+    player.freezeTimer -= GetFrameTime();
+    if (player.freezeTimer <= 0) {
+      player.timeFrozen = false;
     }
-  } else if (playerFreezeTimer < playerFreezeTime && IsKeyUp(KEY_LEFT_SHIFT)) {
-    playerFreezeTimer += GetFrameTime();
-    playerFreezeTimer = Clamp(playerFreezeTimer, 0.0f, playerFreezeTime);
+  } else if (player.freezeTimer < player.freezeTime && IsKeyUp(KEY_LEFT_SHIFT)) {
+    player.freezeTimer += GetFrameTime();
+    player.freezeTimer = Clamp(player.freezeTimer, 0.0f, player.freezeTime);
   }
 }
 void ResetBaddie(Baddie *baddie) {
@@ -1680,16 +1785,16 @@ void ResetPowerup(Powerup *powerup) {
   // memset(powerup, '\0', sizeof(&powerup));
 }
 void PerformKillPlayer(void) {
-  playerHull = 0;
-  playerShield = 0;
-  playerExploding = true;
-  playerExpFrame = 0;
-  playerExpTimer = 0;
-  playerAlertTimer = 0;
-  playerShieldActivating = false;
-  playerShieldDeactivating = false;
+  player.hull = 0;
+  player.shield = 0;
+  player.exploding = true;
+  player.expFrame = 0;
+  player.expTimer = 0;
+  player.alertTimer = 0;
+  player.shieldActivating = false;
+  player.shieldDeactivating = false;
   PlaySound(sounds[EXPLOSION]);
-  endTime = GetTime();
+  player.endTime = GetTime();
   StopAllMusic();
   nowPlaying = &music[DEATH];
   PlayMusicStream(*nowPlaying);
@@ -1726,25 +1831,20 @@ void PerformFragmentAsteroid(Asteroid *asteroid) {
 void PerformHitPlayer(Bullet &bullet) {
   // we are passing in the bullet so we can do damage calculating... eventually
   PerformKillBullet(&bullet);
-  Score -= Clamp((bullet.damage - playerHullStrength), 0, bullet.damage);
-  if (playerShield > 0) {
-    playerShield -=
-        fminf(playerShield, bullet.damage); // prevent shields going negative
-    if (playerShield == 0) {
-      playerShieldDeactivating = true;
+  Score -= Clamp((bullet.damage - player.hullStrength), 0, bullet.damage);
+  if (player.shield > 0) {
+    player.shield -= fminf(player.shield, bullet.damage); // prevent shields going negative
+    if (player.shield == 0) {
+      player.shieldDeactivating = true;
       PlaySound(sounds[SHIELD_DROP]);
       // hit took shields offline, begin regen timer
-      playerFlashTimer =
-          playerFlashTime; // flash player ship for a short duration
-      playerShieldRegenTimer =
-          playerShieldRegenTime; // shield took a hit, initiate shield regen
+      player.flashTimer = player.flashTime; // flash player ship for a short duration
+      player.shieldRegenTimer = player.shieldRegenTime; // shield took a hit, initiate shield regen
                                  // delay
     }
-  } else if (playerHull > (bullet.damage - playerHullStrength - 1)) {
-    playerHull -=
-        Clamp((bullet.damage - playerHullStrength), 0,
-              playerHull); // prevent damage going negative (healing player)
-    playerFlashTimer = playerFlashTime;
+  } else if (player.hull > (bullet.damage - player.hullStrength - 1)) {
+    player.hull -= Clamp((bullet.damage - player.hullStrength), 0, player.hull); // prevent damage going negative (healing player)
+    player.flashTimer = player.flashTime;
   } else {
     PerformKillPlayer();
   }
@@ -1757,12 +1857,12 @@ void PerformHitBaddie(Bullet &bullet, Baddie &baddie) {
     if (baddie.shield == 0) {
       baddie.shield_deactivating = true;
 
-      baddie.flash_timer = playerFlashTime;
-      baddie.shield_regen_timer = playerShieldRegenTime;
+      baddie.flash_timer = player.flashTime;
+      baddie.shield_regen_timer = player.shieldRegenTime;
     }
   } else if (baddie.hull > 0) {
     baddie.hull -= fminf(baddie.hull, bullet.damage);
-    baddie.flash_timer = playerFlashTime;
+    baddie.flash_timer = player.flashTime;
     if (baddie.hull <= 0) {
       PerformKillBaddie(&baddie);
       if (GetRandomValue(1, 100) < (baddie.boss ? 20 : 5)) { // 20% : 5% chance for a powerup
@@ -1794,7 +1894,7 @@ void PerformHitAsteroid(Bullet &bullet, Asteroid &hit) {
     if (GetRandomValue(1, 100) < 33) { // 33% chance to drop a resource collectible
       NewPowerup(hit.position, Vector2{0, (float)PowerupSpeed}, 5.0f);
       // skip the resource drop for now, just give some bonus score
-      // NewResource(hit.position, Vector2{ 0, (float)PowerupSpeed },
+      // NewResource(hit.position, Vector2{ 0, GetRandomValue(0, 50) },
       // GetRandomValue(0, 1000) / 1000.0f );
     }
 
@@ -1829,65 +1929,65 @@ void UpdatePowerup(int id) {
     switch (Powerups[id].type) {
     case SHOT_RELOAD:
       PlaySound(sounds[POWERUP_COLLECT]);
-      playerShotReload -= 1.0f / 60.0f; // increase shots per second
+      player.shotReload -= 1.0f / 60.0f; // increase shots per second
       break;
     case SHOT_SPEED:
       PlaySound(sounds[POWERUP_COLLECT]);
-      playerShotSpeed += 100.0f;
+      player.shotSpeed += 100.0f;
       break;
     case SHOT_POWER:
-      if (playerShotPower < 5) {
-        playerShotPower++;
+      if (player.shotPower < 5) {
+        player.shotPower++;
       }
-      if (playerShotStyle < NUM_SHOT_STYLES - 1) {
+      if (player.shotStyle < NUM_SHOT_STYLES - 1) {
         PlaySound(sounds[POWERUP_DAMAGE_INCREASE]);
-        playerShotStyle++;
+        player.shotStyle++;
       }
       break;
     case SHOT_SPREAD:
-      if (playerShotSpread < 5) {
+      if (player.shotSpread < 5) {
         PlaySound(sounds[POWERUP_SPREAD_INCREASE]);
-        playerShotSpread++;
+        player.shotSpread++;
       } else {
         PlaySound(sounds[NEGATIVE]);
       }
       break;
     case SHIELD_REPAIR:
-      if (playerShieldMax == 0) {
+      if (player.shieldMax == 0) {
         // Only increase shieldmax if we have no shields
-        playerShieldMax++;
+        player.shieldMax++;
       }
-      if (playerShield == 0) {
+      if (player.shield == 0) {
         PlaySound(sounds[SHIELD_RAISE]);
-        playerShieldActivating = true;
+        player.shieldActivating = true;
       } else {
         PlaySound(sounds[NEGATIVE]);
       }
-      playerShield = playerShieldMax;
+      player.shield = player.shieldMax;
       break;
     case SHIELD_MAX:
-      playerShieldMax++;
-      if (playerShield == 0) {
+      player.shieldMax++;
+      if (player.shield == 0) {
         PlaySound(sounds[SHIELD_RAISE]);
-        playerShieldActivating = true;
+        player.shieldActivating = true;
       } else {
         PlaySound(sounds[NEGATIVE]);
       }
-      playerShield = playerShieldMax;
+      player.shield = player.shieldMax;
       break;
     case HULL_REPAIR:
       PlaySound(sounds[POWERUP_HULL_RESTORE]);
-      playerHull = playerHullMax;
+      player.hull = player.hullMax;
       break;
     case HULL_MAX:
       PlaySound(sounds[POWERUP_HULL_INCREASE]);
-      playerHullMax++;
-      playerHull = playerHullMax;
+      player.hullMax++;
+      player.hull = player.hullMax;
       break;
     case HULL_STRENGTH:
-      if (playerHullStrength < 5) {
+      if (player.hullStrength < 5) {
         PlaySound(sounds[POWERUP_HULL_STRENGTH]);
-        playerHullStrength++;
+        player.hullStrength++;
       } else {
         PlaySound(sounds[NEGATIVE]);
       }
@@ -1927,7 +2027,7 @@ Rectangle getAsteroidRec(Asteroid &asteroid) {
                    asteroid.size};
 }
 Rectangle getPlayerRec(void) {
-  return Rectangle{playerPos.x, playerPos.y, playerSize.x, playerSize.y};
+  return Rectangle{player.pos.x, player.pos.y, player.size.x, player.size.y};
 }
 Rectangle getBaddieRec(Baddie &baddie) {
   const Rectangle *mat = &baddie_size_matrix[baddie.type];
@@ -1949,14 +2049,14 @@ float getBaddieShieldRadius(Baddie &baddie) {
 }
 
 Vector2 getPlayerCenter(void) {
-  return Vector2{playerPos.x + (playerSize.x * 0.5f),
-                 playerPos.y + (playerSize.y * 0.5f)};
+  return Vector2{player.pos.x + (player.size.x * 0.5f),
+                 player.pos.y + (player.size.y * 0.5f)};
 }
 
 float getPlayerShieldRadius(void) {
-  if (playerShield <= 0)
+  if (player.shield <= 0)
     return 0.0f;
-  return playerSize.x * 0.5f + (20.0f * (playerShield / playerShieldMax));
+  return player.size.x * 0.5f + (20.0f * (player.shield / player.shieldMax));
 }
 
 void UpdateBackground(void) {
@@ -1980,10 +2080,8 @@ void UpdateBaddie(int id) {
     return;
   }
 
-  if (!playerTimeFrozen) {
-    Baddies[id].position =
-        Vector2Add(Baddies[id].position,
-                   Vector2Scale(Baddies[id].direction, GetFrameTime()));
+  if (!player.timeFrozen) {
+    Baddies[id].position = Vector2Add(Baddies[id].position, Vector2Scale(Baddies[id].direction, GetFrameTime()));
   }
 
   if (Baddies[id].position.y + BaddieSize.y >= (screenSize.y - 100.0f)) {
@@ -1997,17 +2095,17 @@ void UpdateBaddie(int id) {
 
   if (Baddies[id].shield > 0) {
     // perform shield collisions
-    if (playerShield > 0) {
+    if (player.shield > 0) {
       if (CheckCollisionCircles(getBaddieCenter(Baddies[id]),
                                 getBaddieShieldRadius(Baddies[id]),
                                 getPlayerCenter(), getPlayerShieldRadius())) {
         // player with shield runs into baddie with shield
         Baddies[id].shield = 0;
         Baddies[id].shield_deactivating = true;
-        if (!GOD_MODE) {
-          playerShield = 0;
-          playerShieldDeactivating = true;
-          playerShieldRegenTimer = playerShieldRegenTime;
+        if (!player.GOD_MODE) {
+          player.shield = 0;
+          player.shieldDeactivating = true;
+          player.shieldRegenTimer = player.shieldRegenTime;
           PlaySound(sounds[SHIELD_DROP]);
         }
         return;
@@ -2017,31 +2115,30 @@ void UpdateBaddie(int id) {
                                   getBaddieShieldRadius(Baddies[id]),
                                   getPlayerRec())) {
         // player without shield runs into baddie with shield
-        Vector2 collision_angle = {playerPos.x - Baddies[id].position.x,
-                                   playerPos.y - Baddies[id].position.y};
+        Vector2 collision_angle = {player.pos.x - Baddies[id].position.x,
+                                   player.pos.y - Baddies[id].position.y};
         // bounce player off the baddie shield
-        playerPos = Vector2Add(playerPos,
-                               Vector2Scale(collision_angle, GetFrameTime()));
+        player.pos = Vector2Add(player.pos, Vector2Scale(collision_angle, GetFrameTime()));
 
-        playerPos = Vector2Clamp(playerPos, Vector2{1.0f, 1.0f},
-                                 Vector2{screenSize.x - 1.0f - playerSize.x,
-                                         screenSize.y - 1.0f - playerSize.y});
+        player.pos = Vector2Clamp(player.pos, Vector2{1.0f, 1.0f},
+                                 Vector2{screenSize.x - 1.0f - player.size.x,
+                                         screenSize.y - 1.0f - player.size.y});
 
         Baddies[id].shield = 0;
         Baddies[id].shield_deactivating = true;
-        Baddies[id].shield_regen_timer = playerShieldRegenTime;
+        Baddies[id].shield_regen_timer = player.shieldRegenTime;
         PlaySound(sounds[SHIELD_BOUNCE]);
         return;
       }
     }
   } else {
     // perform ship collisions
-    if (playerShield > 0) {
+    if (player.shield > 0) {
       if (CheckCollisionCircleRec(getPlayerCenter(), getPlayerShieldRadius(),
                                   getBaddieRec(Baddies[id]))) {
         // perform player shield to baddie ship collision
-        Vector2 collision_angle = {playerPos.x - Baddies[id].position.x,
-                                   playerPos.y - Baddies[id].position.y};
+        Vector2 collision_angle = {player.pos.x - Baddies[id].position.x,
+                                   player.pos.y - Baddies[id].position.y};
         // bounce baddie off player shield
         Baddies[id].position =
             Vector2Add(Baddies[id].position,
@@ -2051,10 +2148,10 @@ void UpdateBaddie(int id) {
                          Vector2{screenSize.x - 1.0f - Baddies[id].size.x,
                                  screenSize.y - 1.0f - Baddies[id].size.y});
 
-        if (!GOD_MODE) {
-          playerShield = 0;
-          playerShieldDeactivating = true;
-          playerShieldRegenTimer = playerShieldRegenTime;
+        if (!player.GOD_MODE) {
+          player.shield = 0;
+          player.shieldDeactivating = true;
+          player.shieldRegenTimer = player.shieldRegenTime;
           PlaySound(sounds[SHIELD_DROP]);
         }
         return;
@@ -2064,7 +2161,7 @@ void UpdateBaddie(int id) {
         // perform player ship to baddie ship collision
         // player crashed into baddie, nobody wins with the headbutt!!
         PerformKillBaddie(&Baddies[id]);
-        if (!GOD_MODE) {
+        if (!player.GOD_MODE) {
           PerformKillPlayer();
         }
         return;
@@ -2110,7 +2207,7 @@ void UpdateAsteroid(int id) {
     return;
   }
 
-  if (!playerTimeFrozen) {
+  if (!player.timeFrozen) {
     Asteroids[id].position =
         Vector2Add(Asteroids[id].position,
                    Vector2Scale(Asteroids[id].direction, GetFrameTime()));
@@ -2136,15 +2233,15 @@ void UpdateAsteroid(int id) {
 
   Rectangle asteroidRect = getAsteroidRec(Asteroids[id]);
 
-  if (!GOD_MODE && CheckCollisionRecs(asteroidRect, getPlayerRec())) {
+  if (!player.GOD_MODE && CheckCollisionRecs(asteroidRect, getPlayerRec())) {
     // player ran into asteroid, destroy asteroid
     PerformKillAsteroid(&Asteroids[id]);
 
-    if (playerShield > 0) {
+    if (player.shield > 0) {
       // player had shields, deactivate shield
-      playerShield = 0;
-      playerShieldDeactivating = true;
-      playerShieldRegenTimer = playerShieldRegenTime;
+      player.shield = 0;
+      player.shieldDeactivating = true;
+      player.shieldRegenTimer = player.shieldRegenTime;
       PlaySound(sounds[SHIELD_DROP]);
     } else {
       // player had no shields, player dies
@@ -2168,7 +2265,7 @@ void UpdateFragment(int id) {
     ResetAsteroid(&Fragments[id]);
     return;
   }
-  if (!playerTimeFrozen) {
+  if (!player.timeFrozen) {
     Fragments[id].position =
         Vector2Add(Fragments[id].position,
                    Vector2Scale(Fragments[id].direction, GetFrameTime()));
@@ -2190,15 +2287,15 @@ void UpdateFragment(int id) {
   }
   Rectangle fragmentRect = getAsteroidRec(Fragments[id]);
 
-  if (!GOD_MODE && CheckCollisionRecs(fragmentRect, getPlayerRec())) {
+  if (!player.GOD_MODE && CheckCollisionRecs(fragmentRect, getPlayerRec())) {
     // player ran into asteroid, destroy asteroid
     PerformKillAsteroid(&Fragments[id]);
 
-    if (playerShield > 0) {
+    if (player.shield > 0) {
       // player had a shield up, deactivate shields
-      playerShield = 0;
-      playerShieldDeactivating = true;
-      playerShieldRegenTimer = playerShieldRegenTime;
+      player.shield = 0;
+      player.shieldDeactivating = true;
+      player.shieldRegenTimer = player.shieldRegenTime;
       PlaySound(sounds[SHIELD_DROP]);
     } else {
       // player had no shields, player dies
@@ -2216,17 +2313,17 @@ void UpdateFragment(int id) {
 }
 
 void DrawStats() {
-  DrawText(TextFormat("Damage: ", playerShotPower), 5, screenSize.y - 98, 20,
+  DrawText(TextFormat("Damage: ", player.shotPower), 5, screenSize.y - 98, 20,
            WHITE);
-  for (int i = 0; i < playerShotPower; i++) {
+  for (int i = 0; i < player.shotPower; i++) {
     DrawUpgradeTexture(
         3, 0,
         Vector2{MeasureText("Damage: ", 20) + (i * 25.0f), screenSize.y - 98},
         Vector2{20, 20}, WHITE);
   }
-  DrawText(TextFormat("Armor: %d", playerHullStrength), screenSize.x * 0.5f,
+  DrawText(TextFormat("Armor: %d", player.hullStrength), screenSize.x * 0.5f,
            screenSize.y - 98, 20, WHITE);
-  for (int i = 0; i < playerHullStrength; i++) {
+  for (int i = 0; i < player.hullStrength; i++) {
     DrawUpgradeTexture(
         0, 1,
         Vector2{screenSize.x * 0.5f + MeasureText("Armor: ", 20) + (i * 25.0f),
@@ -2239,14 +2336,14 @@ void DrawStats() {
 }
 
 void DrawHullBar() {
-  if (playerHull < 0 || playerHullMax <= 0)
+  if (player.hull < 0 || player.hullMax <= 0)
     return;
 
-  float percent = (float)playerHull / playerHullMax;
+  float percent = (float)player.hull / player.hullMax;
 
-  DrawRing(Vector2{playerPos.x + playerSize.x + (playerSize.x * 0.1f),
-                   playerPos.y + (playerSize.y * 0.5f)},
-           playerSize.x - 3.0f, playerSize.x, 45.0f, 45.0f - (percent * 90.0f),
+  DrawRing(Vector2{player.pos.x + player.size.x + (player.size.x * 0.1f),
+                   player.pos.y + (player.size.y * 0.5f)},
+           player.size.x - 3.0f, player.size.x, 45.0f, 45.0f - (percent * 90.0f),
            5, RED);
 
   Rectangle bar = {100, screenSize.y - 70, screenSize.x - 100, 20};
@@ -2262,22 +2359,22 @@ void DrawShieldBar() {
   // if (playerShieldMax <= 0) return;
   Rectangle bar = {100, screenSize.y - 50, screenSize.x - 100, 20};
 
-  float percent = (playerShieldMax > 0 ? playerShield / playerShieldMax : 0);
+  float percent = (player.shieldMax > 0 ? player.shield / player.shieldMax : 0);
 
-  DrawRing(Vector2{playerPos.x + playerSize.x + 5 + (playerSize.x * 0.1f),
-                   playerPos.y + (playerSize.y * 0.5f)},
-           playerSize.x - 3.0f, playerSize.x, 45.0f, 45.0f - (percent * 90.0f),
+  DrawRing(Vector2{player.pos.x + player.size.x + 5 + (player.size.x * 0.1f),
+                   player.pos.y + (player.size.y * 0.5f)},
+           player.size.x - 3.0f, player.size.x, 45.0f, 45.0f - (percent * 90.0f),
            5, YELLOW);
 
   DrawRectangle(bar.x, bar.y, bar.width, bar.height, GRAY);
   DrawText("Shield:", bar.x - MeasureText("Shield:", 20), bar.y + 2, 20,
            RAYWHITE);
-  if (playerShield > 0 || playerShieldMax == 0) {
+  if (player.shield > 0 || player.shieldMax == 0) {
     DrawRectangle(bar.x, bar.y, bar.width * percent, bar.height, YELLOW);
     DrawText(TextFormat("%2.0f%%", percent * 100), bar.x + bar.width * 0.5f,
              bar.y + 2, 20, BLACK);
   } else {
-    float percent = playerShieldRegenTimer / playerShieldRegenTime;
+    float percent = player.shieldRegenTimer / player.shieldRegenTime;
     DrawRectangle(100, screenSize.y - 50, ((screenSize.x - 100) * percent), 20,
                   GRAY);
     DrawText(
