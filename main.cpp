@@ -74,7 +74,7 @@ std::map<mouseKeys, MouseButton> mouseKeymap = {
 const std::pair<int, int> upgrade_matrix[NUM_POWERUP_TYPES] = {
     {0, 0}, {1, 0}, {2, 0}, {3, 0}, {4, 0}, {0, 1}, {0, 2}, {0, 3}, {0, 4}};
 
-const int NUM_BADDIE_TYPES = 36;
+const int NUM_ENEMY_TYPES= 36;
 
 const int NUM_SHOT_STYLES = 30;
 
@@ -114,7 +114,7 @@ const Rectangle boss_shot_size_matrix[NUM_BOSS_SHOT_STYLES] = {
     {0, 0, 8, 6}, {2, 1, 4, 6},   {3, 1, 3, 6},
 };
 
-const Rectangle baddie_size_matrix[NUM_BADDIE_TYPES] = {
+const Rectangle enemy_size_matrix[NUM_ENEMY_TYPES] = {
     {2, 2, 5, 5}, {0, 2, 7, 5}, {1, 2, 5, 5},
     {1, 3, 6, 5}, {2, 2, 5, 4}, {1, 2, 7, 5},
 
@@ -192,7 +192,7 @@ struct Player {
   int Score = 0;
 };
 
-struct Baddie {
+struct Enemy {
   bool boss;
   int type;
   int shot_style;
@@ -287,7 +287,7 @@ Achievement achievement_info[NUM_ACHIEVEMENTS] = {
     {"Gun Nut", "Max out a single gun stat!", false, 0},
 };
 
-#define MAX_BADDIES 100
+#define MAX_ENEMIES 100
 #define MAX_BULLETS 1000
 #define MAX_POWERUPS 10
 #define MAX_ASTEROIDS 5
@@ -295,7 +295,7 @@ Achievement achievement_info[NUM_ACHIEVEMENTS] = {
 
 Vector2 screenSize = {800, 1200};
 
-Baddie Baddies[MAX_BADDIES];
+Enemy Enemies[MAX_ENEMIES];
 Bullet Bullets[MAX_BULLETS];
 Powerup Powerups[MAX_POWERUPS];
 Asteroid Asteroids[MAX_ASTEROIDS];
@@ -307,32 +307,32 @@ Popup death = {false, 20.0f, Vector2{screenSize.x * 0.5f, screenSize.y * 0.5f}, 
 
 Vector2 GetScreenSize(void);
 Vector2 GetShotSpeed(int totalShots, int currentShot, float speed, float direction);
-int NewBaddie(void);
+int NewEnemy(void);
 void UpdatePlayer(void);
 void UpdatePowerup(int id);
-void UpdateBaddie(int id);
+void UpdateEnemy(int id);
 void UpdateBullet(int id);
 void UpdateAsteroid(int id);
 void UpdateFragment(int id);
 void StopAllMusic(void);
 void PerformHitPlayer(Bullet &bullet);
-void PerformHitBaddie(Bullet &bullet, Baddie &baddie);
+void PerformHitEnemy(Bullet &bullet, Enemy &enemy);
 void PerformHitAsteroid(Bullet &bullet, Asteroid &hit);
-void PerformKillBaddie(Baddie *baddie);
+void PerformKillEnemy(Enemy *enemy);
 void PerformKillBullet(Bullet *bullet);
 void PerformKillAsteroid(Asteroid *asteroid);
 void PerformKillPowerup(Powerup *powerup);
 void PerformFragmentAsteroid(Asteroid *asteroid);
-void ResetBaddie(Baddie *baddie);
+void ResetEnemy(Enemy *enemy);
 void ResetBullet(Bullet *bullet);
 void ResetAsteroid(Asteroid *asteroid);
 void ResetPowerup(Powerup *powerup);
 Rectangle getBulletRec(Bullet &bullet);
 Rectangle getAsteroidRec(Asteroid &asteroid);
 Rectangle getPlayerRec(void);
-Rectangle getBaddieRec(Baddie &baddie);
-Vector2 getBaddieCenter(Baddie &baddie);
-float getBaddieShieldRadius(Baddie &baddie);
+Rectangle getEnemyRec(Enemy &enemy);
+Vector2 getEnemyCenter(Enemy &enemy);
+float getEnemyShieldRadius(Enemy &enemy);
 Vector2 getPlayerCenter(void);
 float getPlayerShieldRadius(void);
 void DrawBackground(void);
@@ -416,10 +416,10 @@ void UpdateBackground(void);
 float AsteroidSpeed = 100.0f;
 float EnemyShotSpeed = 200.0f;
 float ShotLifetime = 2.0f;
-Vector2 BaddieSize = {48.0f, 48.0f};
+Vector2 EnemySize = {48.0f, 48.0f};
 Vector2 BulletSize = {48.0f, 48.0f};
 Vector2 BossSize = {96.0f, 96.0f};
-float BaddieSpeed = 100.0f;
+float EnemySpeed = 100.0f;
 int Score = 0;
 Vector2 PowerupSize = {25.0f, 25.0f};
 float PowerupSpeed = 300.0f;
@@ -681,8 +681,8 @@ void InitGame(void) {
   movingBackgroundPosY = 0;
   musicPlayed = 0;
 
-  for (int i = 0; i < MAX_BADDIES; i++) {
-    Baddies[i].active = false;
+  for (int i = 0; i < MAX_ENEMIES; i++) {
+    Enemies[i].active = false;
   }
   for (int i = 0; i < MAX_BULLETS; i++) {
     Bullets[i].active = false;
@@ -699,7 +699,7 @@ void InitGame(void) {
 
   int count = 5; // GetRandomValue(10, MAX_ENTITIES / 10);
   for (int i = 0; i < count; i++) {
-    NewBaddie();
+    NewEnemy();
   }
 
   player.pos = {screenSize.x / 2.0f, screenSize.y - (100.0f + player.size.y)};
@@ -713,10 +713,10 @@ void DrawShipTexture(int x, int y, Vector2 coords, float rotation, Color hitColo
   // DrawRectangleLines(coords.x, coords.y, playerSize.x, playerSize.y, WHITE);
 }
 
-void DrawBaddieTexture(int x, int y, Vector2 coords, Color hitColor) {
+void DrawEnemyTexture(int x, int y, Vector2 coords, Color hitColor) {
   DrawTexturePro(textures[SHIPS],
                  Rectangle{8.0f * 4 + (8.0f * x), 8.0f * y, 8.0f, 8.0f},
-                 Rectangle{coords.x, coords.y, BaddieSize.x, BaddieSize.y},
+                 Rectangle{coords.x, coords.y, EnemySize.x, EnemySize.y},
                  Vector2Zero(), 0, hitColor);
 }
 
@@ -781,8 +781,8 @@ void DrawAsteroidTexture(int type, Vector2 coords, float size, float rotation,
                  Vector2{size * 0.5f, size * 0.5f}, rotation, tint);
 }
 
-int FindEmptyBaddie(Baddie *list) {
-  for (int i = 0; i < MAX_BADDIES; i++) {
+int FindEmptyEnemy(Enemy *list) {
+  for (int i = 0; i < MAX_ENEMIES; i++) {
     if (!list[i].active)
       return i;
   }
@@ -869,25 +869,25 @@ int NewPlayerBullet(Vector2 position, int style, float lifetime, Color tint,
   return id;
 }
 
-int NewBaddieBullet(Baddie &baddie, float lifetime, Color tint) {
+int NewEnemyBullet(Enemy &enemy, float lifetime, Color tint) {
   int id = -1;
-  for (int i = 0; i < baddie.bullets_per_shot; i++) {
+  for (int i = 0; i < enemy.bullets_per_shot; i++) {
     id = FindEmptyBullet(Bullets);
     if (id == -1)
       return -1; // nope
 
     Bullets[id].active = true;
-    Bullets[id].boss = baddie.boss;
-    Bullets[id].position = Vector2{baddie.position.x + (baddie.size.x * 0.5f),
-                                   baddie.position.y + (baddie.size.x * 0.5f)};
+    Bullets[id].boss = enemy.boss;
+    Bullets[id].position = Vector2{enemy.position.x + (enemy.size.x * 0.5f),
+                                   enemy.position.y + (enemy.size.x * 0.5f)};
     Bullets[id].lifetime = lifetime;
     Bullets[id].tint = tint;
     Bullets[id].player_bullet = false;
     Bullets[id].direction =
-        GetShotSpeed(baddie.bullets_per_shot, i, EnemyShotSpeed, 1.0f);
+        GetShotSpeed(enemy.bullets_per_shot, i, EnemyShotSpeed, 1.0f);
     Bullets[id].damage =
-        (baddie.boss ? GetRandomValue(5, 10) : GetRandomValue(1, 3));
-    Bullets[id].type = baddie.shot_style;
+        (enemy.boss ? GetRandomValue(5, 10) : GetRandomValue(1, 3));
+    Bullets[id].type = enemy.shot_style;
     Bullets[id].size = Vector2{32.0f, 32.0f};
   }
 
@@ -1001,36 +1001,36 @@ void UpdatePlayerShield(void) {
   }
 }
 
-void UpdateBaddieShield(Baddie &baddie) {
-  if (baddie.shield < baddie.shield_max) {
-    if (baddie.shield_regen_timer <= 0)
-      baddie.shield += baddie.shield_regen_amt * GetFrameTime();
+void UpdateEnemyShield(Enemy &enemy) {
+  if (enemy.shield < enemy.shield_max) {
+    if (enemy.shield_regen_timer <= 0)
+      enemy.shield += enemy.shield_regen_amt * GetFrameTime();
     else {
-      baddie.shield_regen_timer -= GetFrameTime();
-      if (baddie.shield_regen_timer <= 0) {
-        baddie.shield_regen_timer = 0;
-        baddie.shield_activating = true;
+      enemy.shield_regen_timer -= GetFrameTime();
+      if (enemy.shield_regen_timer <= 0) {
+        enemy.shield_regen_timer = 0;
+        enemy.shield_activating = true;
       }
     }
   }
-  if (baddie.shield_activating) {
-    baddie.shield_frame_timer += GetFrameTime();
-    if (baddie.shield_frame_timer >= player.shieldFrameTime) {
-      baddie.shield_frame_timer = 0;
-      baddie.shield_frame++;
-      if (baddie.shield_frame >= player.shieldFrames - 1) {
-        baddie.shield_frame = 3;
-        baddie.shield_activating = false;
+  if (enemy.shield_activating) {
+    enemy.shield_frame_timer += GetFrameTime();
+    if (enemy.shield_frame_timer >= player.shieldFrameTime) {
+      enemy.shield_frame_timer = 0;
+      enemy.shield_frame++;
+      if (enemy.shield_frame >= player.shieldFrames - 1) {
+        enemy.shield_frame = 3;
+        enemy.shield_activating = false;
       }
     }
-  } else if (baddie.shield_deactivating) {
-    baddie.shield_frame_timer += GetFrameTime();
-    if (baddie.shield_frame_timer >= player.shieldFrameTime) {
-      baddie.shield_frame_timer = 0;
-      baddie.shield_frame--;
-      if (baddie.shield_frame <= 0) {
-        baddie.shield_frame = 0;
-        baddie.shield_deactivating = false;
+  } else if (enemy.shield_deactivating) {
+    enemy.shield_frame_timer += GetFrameTime();
+    if (enemy.shield_frame_timer >= player.shieldFrameTime) {
+      enemy.shield_frame_timer = 0;
+      enemy.shield_frame--;
+      if (enemy.shield_frame <= 0) {
+        enemy.shield_frame = 0;
+        enemy.shield_deactivating = false;
       }
     }
   }
@@ -1123,13 +1123,13 @@ void DrawPlayerFreezeTimer(void) {
            135.0f + (player.freezeTimer * 90.0f), 5, RAYWHITE);
 }
 
-void DrawBaddie(int id) {
-  if (Baddies[id].exploding) {
-    DrawMiscTexture(Rectangle{9 * 8.0f + (8.0f * Baddies[id].exp_frame),
+void DrawEnemy(int id) {
+  if (Enemies[id].exploding) {
+    DrawMiscTexture(Rectangle{9 * 8.0f + (8.0f * Enemies[id].exp_frame),
                               6 * 8.0f, 8.0f, 8.0f},
-                    Rectangle{Baddies[id].position.x, Baddies[id].position.y,
-                              Baddies[id].boss ? BossSize.x : BaddieSize.x,
-                              Baddies[id].boss ? BossSize.y : BaddieSize.y},
+                    Rectangle{Enemies[id].position.x, Enemies[id].position.y,
+                              Enemies[id].boss ? BossSize.x : EnemySize.x,
+                              Enemies[id].boss ? BossSize.y : EnemySize.y},
                     WHITE);
     return;
   }
@@ -1137,9 +1137,9 @@ void DrawBaddie(int id) {
   int by = 0;
   int maxX = 6;
 
-  if (Baddies[id].boss)
+  if (Enemies[id].boss)
     maxX = 3;
-  for (int i = 0; i < Baddies[id].type; i++) {
+  for (int i = 0; i < Enemies[id].type; i++) {
     bx++;
     if (bx >= maxX) {
       bx = 0;
@@ -1148,38 +1148,38 @@ void DrawBaddie(int id) {
   }
   Color hitColor = WHITE;
 
-  if (Baddies[id].flash_timer > 0)
-    Baddies[id].flash_timer -= GetFrameTime();
+  if (Enemies[id].flash_timer > 0)
+    Enemies[id].flash_timer -= GetFrameTime();
 
-  if (Baddies[id].flash_timer <= 0) {
+  if (Enemies[id].flash_timer <= 0) {
     hitColor = (player.timeFrozen ? SKYBLUE : WHITE);
   } else
     hitColor = YELLOW;
 
-  if (Baddies[id].boss) {
-    DrawBossTexture(bx, by, Baddies[id].position, hitColor);
+  if (Enemies[id].boss) {
+    DrawBossTexture(bx, by, Enemies[id].position, hitColor);
   } else {
-    DrawBaddieTexture(bx, by, Baddies[id].position, hitColor);
+    DrawEnemyTexture(bx, by, Enemies[id].position, hitColor);
   }
 
-  if (Baddies[id].shield > 0 || Baddies[id].shield_activating ||
-      Baddies[id].shield_deactivating) {
-    DrawShieldTexture(Baddies[id].shield_frame, Baddies[id].position,
-                      Baddies[id].size,
-                      Baddies[id].shield / Baddies[id].shield_max, WHITE);
+  if (Enemies[id].shield > 0 || Enemies[id].shield_activating ||
+      Enemies[id].shield_deactivating) {
+    DrawShieldTexture(Enemies[id].shield_frame, Enemies[id].position,
+                      Enemies[id].size,
+                      Enemies[id].shield / Enemies[id].shield_max, WHITE);
   }
 
   // Draw bounding box for debug
-  // Rectangle rec = getBaddieRec(Baddies[id]);
+  // Rectangle rec = getEnemyRec(Enemies[id]);
   // DrawRectangleLines(rec.x, rec.y, rec.width, rec.height, WHITE);
   //
   // Draw hull/shield values for debug
-  /* DrawText(TextFormat("%2.2f/%d", Baddies[id].shield, */
-  /* Baddies[id].shield_max), */
-  /*           Baddies[id].position.x, Baddies[id].position.y - 20, 10, WHITE);
+  /* DrawText(TextFormat("%2.2f/%d", Enemies[id].shield, */
+  /* Enemies[id].shield_max), */
+  /*           Enemies[id].position.x, Enemies[id].position.y - 20, 10, WHITE);
    */
-  /*  DrawText(TextFormat("%d/%d", Baddies[id].hull, Baddies[id].hull_max), */
-  /*           Baddies[id].position.x, Baddies[id].position.y - 10, 10, WHITE);
+  /*  DrawText(TextFormat("%d/%d", Enemies[id].hull, Enemies[id].hull_max), */
+  /*           Enemies[id].position.x, Enemies[id].position.y - 10, 10, WHITE);
    */
 }
 
@@ -1404,11 +1404,11 @@ void UpdateAndDraw(void) {
         continue;
       UpdateBullet(i);
     }
-    // baddies
-    for (i = 0; i < MAX_BADDIES; i++) {
-      if (!Baddies[i].active)
+    // Enemies
+    for (i = 0; i < MAX_ENEMIES; i++) {
+      if (!Enemies[i].active)
         continue;
-      UpdateBaddie(i);
+      UpdateEnemy(i);
     }
     // powerups
     for (i = 0; i < MAX_POWERUPS; i++) {
@@ -1441,7 +1441,7 @@ void UpdateAndDraw(void) {
   DrawPlayer();
   DrawPlayerTarget();
 
-  // draw end line for baddies to cross
+  // draw end line for Enemies to cross
   DrawRectangle(0, screenSize.y - 100, screenSize.x, 3, BLACK);
   DrawLineV(Vector2{0.0f, screenSize.y - 100.0f},
             Vector2{screenSize.x, screenSize.y - 100.0f}, YELLOW);
@@ -1469,10 +1469,10 @@ void UpdateAndDraw(void) {
     DrawFragment(i);
   }
 
-  for (i = 0; i < MAX_BADDIES; i++) {
-    if (!Baddies[i].active)
+  for (i = 0; i < MAX_ENEMIES; i++) {
+    if (!Enemies[i].active)
       continue;
-    DrawBaddie(i);
+    DrawEnemy(i);
   }
 
   for (i = 0; i < MAX_POWERUPS; i++) {
@@ -1597,50 +1597,50 @@ int NewFragment(int type, int size, Vector2 position, int durability, int metal,
   return id;
 }
 
-int NewBaddie() {
-  int id = FindEmptyBaddie(Baddies);
+int NewEnemy() {
+  int id = FindEmptyEnemy(Enemies);
   if (id == -1)
     return -1; // nope
   int scoreMult = (fmaxf(Score, 0) / 100);
   bool boss = (GetRandomValue(0, 100) < scoreMult);
 
-  Baddies[id].boss = boss; // 5% chance to spawn a boss
-  Baddies[id].size = (boss ? BossSize : BaddieSize);
-  float xPos = GetRandomValue(0, screenSize.x - Baddies[id].size.x);
+  Enemies[id].boss = boss; // 5% chance to spawn a boss
+  Enemies[id].size = (boss ? BossSize : EnemySize);
+  float xPos = GetRandomValue(0, screenSize.x - Enemies[id].size.x);
   float yPos = 0;
-  Baddies[id].type =
-      GetRandomValue(0, (boss ? NUM_BOSS_TYPES - 1 : NUM_BADDIE_TYPES - 1));
-  Baddies[id].shot_style = GetRandomValue(
+  Enemies[id].type =
+      GetRandomValue(0, (boss ? NUM_BOSS_TYPES - 1 : NUM_ENEMY_TYPES - 1));
+  Enemies[id].shot_style = GetRandomValue(
       0, (boss ? NUM_BOSS_SHOT_STYLES - 1 : NUM_SHOT_STYLES - 1));
-  Baddies[id].bullets_per_shot =
+  Enemies[id].bullets_per_shot =
       (boss ? GetRandomValue(2, 4) : 1); // boss gets 1-3 shots
-  Baddies[id].active = true;
-  Baddies[id].position = Vector2{xPos, yPos};
-  Baddies[id].direction = Vector2{
+  Enemies[id].active = true;
+  Enemies[id].position = Vector2{xPos, yPos};
+  Enemies[id].direction = Vector2{
       0,
-      (float)(boss ? GetRandomValue(BaddieSpeed * 0.15, BaddieSpeed * 0.35)
-                   : GetRandomValue(BaddieSpeed * 0.5f, BaddieSpeed * 1.5f))};
-  Baddies[id].lifetime = 60.0f;
-  Baddies[id].tint = WHITE;
-  Baddies[id].player_bullet = false;
-  Baddies[id].shot_timer = 0;
-  Baddies[id].hull = Baddies[id].hull_max =
+      (float)(boss ? GetRandomValue(EnemySpeed * 0.15, EnemySpeed * 0.35)
+                   : GetRandomValue(EnemySpeed * 0.5f, EnemySpeed * 1.5f))};
+  Enemies[id].lifetime = 60.0f;
+  Enemies[id].tint = WHITE;
+  Enemies[id].player_bullet = false;
+  Enemies[id].shot_timer = 0;
+  Enemies[id].hull = Enemies[id].hull_max =
       (boss ? GetRandomValue(20, (20 + (scoreMult * 5)))
             : GetRandomValue(1, (scoreMult ? (scoreMult * 2) : 1)));
-  Baddies[id].shield = Baddies[id].shield_max =
+  Enemies[id].shield = Enemies[id].shield_max =
       (boss ? GetRandomValue(40, (40 + (scoreMult * 10)))
             : GetRandomValue(0, (scoreMult ? (scoreMult * 4) : 0)));
-  // leave baddie hull strength at 0 until I implement increased player damage
-  Baddies[id].hull_strength = (boss ? 0 : 0);
-  Baddies[id].flash_timer = 0;
-  Baddies[id].exploding = false;
-  Baddies[id].exp_frame = 0;
-  Baddies[id].exp_timer = 0;
-  if (Baddies[id].shield > 0) {
-    Baddies[id].shield_activating = true;
-    Baddies[id].shield_frame_timer = player.shieldFrameTime;
-    Baddies[id].shield_frame = 0;
-    Baddies[id].shield_regen_amt = 0.5f;
+  // leave Enemy hull strength at 0 until I implement increased player damage
+  Enemies[id].hull_strength = (boss ? 0 : 0);
+  Enemies[id].flash_timer = 0;
+  Enemies[id].exploding = false;
+  Enemies[id].exp_frame = 0;
+  Enemies[id].exp_timer = 0;
+  if (Enemies[id].shield > 0) {
+    Enemies[id].shield_activating = true;
+    Enemies[id].shield_frame_timer = player.shieldFrameTime;
+    Enemies[id].shield_frame = 0;
+    Enemies[id].shield_regen_amt = 0.5f;
   }
   return id;
 }
@@ -1693,22 +1693,22 @@ void UpdateBullet(int id) {
       }
     }
   } else {
-    for (int i = 0; i < MAX_BADDIES; i++) {
-      if (!Baddies[i].active)
+    for (int i = 0; i < MAX_ENEMIES; i++) {
+      if (!Enemies[i].active)
         continue;
-      if (Baddies[i].shield > 0) {
-        // check if bullet hits baddie shield
-        if (CheckCollisionCircleRec(getBaddieCenter(Baddies[i]),
-                                    getBaddieShieldRadius(Baddies[i]),
+      if (Enemies[i].shield > 0) {
+        // check if bullet hits Enemy shield
+        if (CheckCollisionCircleRec(getEnemyCenter(Enemies[i]),
+                                    getEnemyShieldRadius(Enemies[i]),
                                     getBulletRec(Bullets[id]))) {
-          PerformHitBaddie(Bullets[id], Baddies[i]);
+          PerformHitEnemy(Bullets[id], Enemies[i]);
           break;
         }
       } else {
-        // check if bullet hits baddie ship
+        // check if bullet hits Enemy ship
         if (CheckCollisionRecs(getBulletRec(Bullets[id]),
-                               getBaddieRec(Baddies[i]))) {
-          PerformHitBaddie(Bullets[id], Baddies[i]);
+                               getEnemyRec(Enemies[i]))) {
+          PerformHitEnemy(Bullets[id], Enemies[i]);
           break;
         }
       }
@@ -1767,10 +1767,10 @@ void UpdatePlayer(void) {
     player.freezeTimer = Clamp(player.freezeTimer, 0.0f, player.freezeTime);
   }
 }
-void ResetBaddie(Baddie *baddie) {
-  baddie->active = false;
-  NewBaddie();
-  // memset(baddie, '\0', sizeof(&baddie)); // fill every property with NULL
+void ResetEnemy(Enemy *enemy) {
+  enemy->active = false;
+  NewEnemy();
+  // memset(enemy, '\0', sizeof(&enemy)); // fill every property with NULL
 }
 void ResetBullet(Bullet *bullet) {
   bullet->active = false;
@@ -1799,14 +1799,14 @@ void PerformKillPlayer(void) {
   nowPlaying = &music[DEATH];
   PlayMusicStream(*nowPlaying);
 }
-void PerformKillBaddie(Baddie *baddie) {
-  baddie->hull = 0;
-  baddie->shield = 0;
-  baddie->exploding = true;
-  baddie->exp_frame = 0;
-  baddie->exp_timer = 0;
-  baddie->shield_activating = false;
-  baddie->shield_deactivating = false;
+void PerformKillEnemy(Enemy *enemy) {
+  enemy->hull = 0;
+  enemy->shield = 0;
+  enemy->exploding = true;
+  enemy->exp_frame = 0;
+  enemy->exp_timer = 0;
+  enemy->shield_activating = false;
+  enemy->shield_deactivating = false;
   SetSoundVolume(sounds[EXPLOSION], 0.5f);
   PlaySound(sounds[EXPLOSION]);
 }
@@ -1850,29 +1850,29 @@ void PerformHitPlayer(Bullet &bullet) {
   }
 }
 
-void PerformHitBaddie(Bullet &bullet, Baddie &baddie) {
+void PerformHitEnemy(Bullet &bullet, Enemy &enemy) {
   PerformKillBullet(&bullet);
-  if (baddie.shield > 0) {
-    baddie.shield -= fminf(baddie.shield, bullet.damage);
-    if (baddie.shield == 0) {
-      baddie.shield_deactivating = true;
+  if (enemy.shield > 0) {
+    enemy.shield -= fminf(enemy.shield, bullet.damage);
+    if (enemy.shield == 0) {
+      enemy.shield_deactivating = true;
 
-      baddie.flash_timer = player.flashTime;
-      baddie.shield_regen_timer = player.shieldRegenTime;
+      enemy.flash_timer = player.flashTime;
+      enemy.shield_regen_timer = player.shieldRegenTime;
     }
-  } else if (baddie.hull > 0) {
-    baddie.hull -= fminf(baddie.hull, bullet.damage);
-    baddie.flash_timer = player.flashTime;
-    if (baddie.hull <= 0) {
-      PerformKillBaddie(&baddie);
-      if (GetRandomValue(1, 100) < (baddie.boss ? 20 : 5)) { // 20% : 5% chance for a powerup
-        NewPowerup(baddie.position, Vector2{0, (float)PowerupSpeed}, 5.0f);
+  } else if (enemy.hull > 0) {
+    enemy.hull -= fminf(enemy.hull, bullet.damage);
+    enemy.flash_timer = player.flashTime;
+    if (enemy.hull <= 0) {
+      PerformKillEnemy(&enemy);
+      if (GetRandomValue(1, 100) < (enemy.boss ? 20 : 5)) { // 20% : 5% chance for a powerup
+        NewPowerup(enemy.position, Vector2{0, (float)PowerupSpeed}, 5.0f);
       }
       if (GetRandomValue(1, 100) < 10) {
         NewAsteroid(0);
       }
-      int value = (baddie.hull_max);
-      if (baddie.boss)
+      int value = (enemy.hull_max);
+      if (enemy.boss)
         value *= 2;
       Score += value;
     }
@@ -2029,23 +2029,23 @@ Rectangle getAsteroidRec(Asteroid &asteroid) {
 Rectangle getPlayerRec(void) {
   return Rectangle{player.pos.x, player.pos.y, player.size.x, player.size.y};
 }
-Rectangle getBaddieRec(Baddie &baddie) {
-  const Rectangle *mat = &baddie_size_matrix[baddie.type];
-  Vector2 scale = {baddie.size.x * 0.125f, baddie.size.y * 0.125f};
-  return Rectangle{baddie.position.x + (mat->x * scale.x),
-                   baddie.position.y + (mat->y * scale.y), mat->width * scale.x,
+Rectangle getEnemyRec(Enemy &enemy) {
+  const Rectangle *mat = &enemy_size_matrix[enemy.type];
+  Vector2 scale = {enemy.size.x * 0.125f, enemy.size.y * 0.125f};
+  return Rectangle{enemy.position.x + (mat->x * scale.x),
+                   enemy.position.y + (mat->y * scale.y), mat->width * scale.x,
                    mat->height * scale.y};
 }
 
-Vector2 getBaddieCenter(Baddie &baddie) {
-  return Vector2{baddie.position.x + (baddie.size.x * 0.5f),
-                 baddie.position.y + (baddie.size.y * 0.5f)};
+Vector2 getEnemyCenter(Enemy &enemy) {
+  return Vector2{enemy.position.x + (enemy.size.x * 0.5f),
+                 enemy.position.y + (enemy.size.y * 0.5f)};
 }
 
-float getBaddieShieldRadius(Baddie &baddie) {
-  if (baddie.shield <= 0)
+float getEnemyShieldRadius(Enemy &enemy) {
+  if (enemy.shield <= 0)
     return 0.0f;
-  return baddie.size.x * 0.5f + (20.0f * (baddie.shield / baddie.shield_max));
+  return enemy.size.x * 0.5f + (20.0f * (enemy.shield / enemy.shield_max));
 }
 
 Vector2 getPlayerCenter(void) {
@@ -2065,43 +2065,43 @@ void UpdateBackground(void) {
     movingBackgroundPosY = 0;
 }
 
-void UpdateBaddie(int id) {
-  if (Baddies[id].hull <= 0 && Baddies[id].exploding) {
-    Baddies[id].exp_timer += GetFrameTime();
-    if (Baddies[id].exp_timer >= 0.2f) {
-      Baddies[id].exp_timer = 0;
-      Baddies[id].exp_frame++;
-      if (Baddies[id].exp_frame > 3) {
-        Baddies[id].exploding = false;
+void UpdateEnemy(int id) {
+  if (Enemies[id].hull <= 0 && Enemies[id].exploding) {
+    Enemies[id].exp_timer += GetFrameTime();
+    if (Enemies[id].exp_timer >= 0.2f) {
+      Enemies[id].exp_timer = 0;
+      Enemies[id].exp_frame++;
+      if (Enemies[id].exp_frame > 3) {
+        Enemies[id].exploding = false;
 
-        ResetBaddie(&Baddies[id]);
+        ResetEnemy(&Enemies[id]);
       }
     }
     return;
   }
 
   if (!player.timeFrozen) {
-    Baddies[id].position = Vector2Add(Baddies[id].position, Vector2Scale(Baddies[id].direction, GetFrameTime()));
+    Enemies[id].position = Vector2Add(Enemies[id].position, Vector2Scale(Enemies[id].direction, GetFrameTime()));
   }
 
-  if (Baddies[id].position.y + BaddieSize.y >= (screenSize.y - 100.0f)) {
+  if (Enemies[id].position.y + EnemySize.y >= (screenSize.y - 100.0f)) {
     // they got through
-    ResetBaddie(&Baddies[id]);
+    ResetEnemy(&Enemies[id]);
     Score -= 10;
     return;
   }
 
-  UpdateBaddieShield(Baddies[id]);
+  UpdateEnemyShield(Enemies[id]);
 
-  if (Baddies[id].shield > 0) {
+  if (Enemies[id].shield > 0) {
     // perform shield collisions
     if (player.shield > 0) {
-      if (CheckCollisionCircles(getBaddieCenter(Baddies[id]),
-                                getBaddieShieldRadius(Baddies[id]),
+      if (CheckCollisionCircles(getEnemyCenter(Enemies[id]),
+                                getEnemyShieldRadius(Enemies[id]),
                                 getPlayerCenter(), getPlayerShieldRadius())) {
-        // player with shield runs into baddie with shield
-        Baddies[id].shield = 0;
-        Baddies[id].shield_deactivating = true;
+        // player with shield runs into enemy with shield
+        Enemies[id].shield = 0;
+        Enemies[id].shield_deactivating = true;
         if (!player.GOD_MODE) {
           player.shield = 0;
           player.shieldDeactivating = true;
@@ -2111,22 +2111,22 @@ void UpdateBaddie(int id) {
         return;
       }
     } else {
-      if (CheckCollisionCircleRec(getBaddieCenter(Baddies[id]),
-                                  getBaddieShieldRadius(Baddies[id]),
+      if (CheckCollisionCircleRec(getEnemyCenter(Enemies[id]),
+                                  getEnemyShieldRadius(Enemies[id]),
                                   getPlayerRec())) {
-        // player without shield runs into baddie with shield
-        Vector2 collision_angle = {player.pos.x - Baddies[id].position.x,
-                                   player.pos.y - Baddies[id].position.y};
-        // bounce player off the baddie shield
+        // player without shield runs into enemy with shield
+        Vector2 collision_angle = {player.pos.x - Enemies[id].position.x,
+                                   player.pos.y - Enemies[id].position.y};
+        // bounce player off the enemy shield
         player.pos = Vector2Add(player.pos, Vector2Scale(collision_angle, GetFrameTime()));
 
         player.pos = Vector2Clamp(player.pos, Vector2{1.0f, 1.0f},
                                  Vector2{screenSize.x - 1.0f - player.size.x,
                                          screenSize.y - 1.0f - player.size.y});
 
-        Baddies[id].shield = 0;
-        Baddies[id].shield_deactivating = true;
-        Baddies[id].shield_regen_timer = player.shieldRegenTime;
+        Enemies[id].shield = 0;
+        Enemies[id].shield_deactivating = true;
+        Enemies[id].shield_regen_timer = player.shieldRegenTime;
         PlaySound(sounds[SHIELD_BOUNCE]);
         return;
       }
@@ -2135,18 +2135,18 @@ void UpdateBaddie(int id) {
     // perform ship collisions
     if (player.shield > 0) {
       if (CheckCollisionCircleRec(getPlayerCenter(), getPlayerShieldRadius(),
-                                  getBaddieRec(Baddies[id]))) {
-        // perform player shield to baddie ship collision
-        Vector2 collision_angle = {player.pos.x - Baddies[id].position.x,
-                                   player.pos.y - Baddies[id].position.y};
-        // bounce baddie off player shield
-        Baddies[id].position =
-            Vector2Add(Baddies[id].position,
+                                  getEnemyRec(Enemies[id]))) {
+        // perform player shield to enemy ship collision
+        Vector2 collision_angle = {player.pos.x - Enemies[id].position.x,
+                                   player.pos.y - Enemies[id].position.y};
+        // bounce enemy off player shield
+        Enemies[id].position =
+            Vector2Add(Enemies[id].position,
                        Vector2Scale(collision_angle, GetFrameTime()));
-        Baddies[id].position =
-            Vector2Clamp(Baddies[id].position, Vector2{1.0f, 1.0f},
-                         Vector2{screenSize.x - 1.0f - Baddies[id].size.x,
-                                 screenSize.y - 1.0f - Baddies[id].size.y});
+        Enemies[id].position =
+            Vector2Clamp(Enemies[id].position, Vector2{1.0f, 1.0f},
+                         Vector2{screenSize.x - 1.0f - Enemies[id].size.x,
+                                 screenSize.y - 1.0f - Enemies[id].size.y});
 
         if (!player.GOD_MODE) {
           player.shield = 0;
@@ -2157,10 +2157,10 @@ void UpdateBaddie(int id) {
         return;
       }
     } else {
-      if (CheckCollisionRecs(getBaddieRec(Baddies[id]), getPlayerRec())) {
-        // perform player ship to baddie ship collision
-        // player crashed into baddie, nobody wins with the headbutt!!
-        PerformKillBaddie(&Baddies[id]);
+      if (CheckCollisionRecs(getEnemyRec(Enemies[id]), getPlayerRec())) {
+        // perform player ship to enemy ship collision
+        // player crashed into enemy, nobody wins with the headbutt!!
+        PerformKillEnemy(&Enemies[id]);
         if (!player.GOD_MODE) {
           PerformKillPlayer();
         }
@@ -2172,10 +2172,10 @@ void UpdateBaddie(int id) {
   for (int i = 0; i < MAX_ASTEROIDS; i++) {
     if (!Asteroids[i].active)
       continue;
-    if (CheckCollisionRecs(getBaddieRec(Baddies[id]),
+    if (CheckCollisionRecs(getEnemyRec(Enemies[id]),
                            getAsteroidRec(Asteroids[i]))) {
-      // baddie crashed into asteroid, baddie loses
-      PerformKillBaddie(&Baddies[id]);
+      // enemy crashed into asteroid, enemy loses
+      PerformKillEnemy(&Enemies[id]);
       return;
     }
   }
@@ -2183,19 +2183,19 @@ void UpdateBaddie(int id) {
   for (int i = 0; i < MAX_FRAGMENTS; i++) {
     if (!Fragments[i].active)
       continue;
-    if (CheckCollisionRecs(getBaddieRec(Baddies[id]),
+    if (CheckCollisionRecs(getEnemyRec(Enemies[id]),
                            getAsteroidRec(Fragments[i]))) {
-      // baddie crashed into fragment, baddie loses
-      PerformKillBaddie(&Baddies[id]);
+      // enemy crashed into fragment, enemy loses
+      PerformKillEnemy(&Enemies[id]);
       return;
     }
   }
 
-  Baddies[id].shot_timer -= GetFrameTime();
-  if (Baddies[id].shot_timer <= 0 && GetRandomValue(1, 100) < 10) {
+  Enemies[id].shot_timer -= GetFrameTime();
+  if (Enemies[id].shot_timer <= 0 && GetRandomValue(1, 100) < 10) {
     // make enemy bullet
-    Baddies[id].shot_timer = GetRandomValue(1, 4);
-    NewBaddieBullet(Baddies[id], ShotLifetime * 2, RED);
+    Enemies[id].shot_timer = GetRandomValue(1, 4);
+    NewEnemyBullet(Enemies[id], ShotLifetime * 2, RED);
   }
 }
 
